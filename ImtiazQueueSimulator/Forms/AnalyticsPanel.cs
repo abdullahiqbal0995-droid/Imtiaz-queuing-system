@@ -1,18 +1,25 @@
+using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Linq;
 using System.Windows.Forms;
 using ImtiazQueueSimulator.Models;
 
 namespace ImtiazQueueSimulator.Forms
 {
     /// <summary>
-    /// Analytics panel with GDI+ custom-drawn charts for queue metrics.
-    /// Redesigned with rounded chart panels, drop shadows, and better labels.
-    /// All chart rendering logic is unchanged.
+    /// Executive Analytics Panel featuring responsive GDI+ custom-drawn charts.
+    /// Includes responsive 2-column layout, full vertical scrolling, zero text overlap,
+    /// and precise graph plot clipping preventing line dips below baselines.
     /// </summary>
     public class AnalyticsPanel : UserControl
     {
         private SimulationResult? _result;
+        private Panel _mainContainer = null!;
+        private Label _titleLabel = null!;
+        private Label _subTitleLabel = null!;
+
         private Panel _chartPanel1 = null!;
         private Panel _chartPanel2 = null!;
         private Panel _chartPanel3 = null!;
@@ -20,12 +27,13 @@ namespace ImtiazQueueSimulator.Forms
         private Panel _chartPanel5 = null!;
 
         // ── Design tokens ──────────────────────────────────────────────────────
-        private static readonly Color PageBg    = Color.FromArgb(244, 246, 250);
-        private static readonly Color CardBg    = Color.White;
-        private static readonly Color TextDark  = Color.FromArgb(30, 41, 59);
-        private static readonly Color TextMid   = Color.FromArgb(71, 85, 105);
-        private static readonly Color TextLight = Color.FromArgb(71, 85, 105);   // Slate 600 (High Contrast)
-        private static readonly Color Border    = Color.FromArgb(226, 232, 240);
+        private static readonly Color PageBg      = Color.FromArgb(244, 246, 250);
+        private static readonly Color CardBg      = Color.White;
+        private static readonly Color TextDark    = Color.FromArgb(30, 41, 59);
+        private static readonly Color TextMid     = Color.FromArgb(71, 85, 105);
+        private static readonly Color TextLight   = Color.FromArgb(100, 116, 139);
+        private static readonly Color Border      = Color.FromArgb(226, 232, 240);
+        private static readonly Color GridLinePen = Color.FromArgb(241, 245, 249);
 
         public AnalyticsPanel()
         {
@@ -36,57 +44,72 @@ namespace ImtiazQueueSimulator.Forms
 
         private void BuildUI()
         {
-            int y = 20;
+            Controls.Clear();
+
+            _mainContainer = new Panel
+            {
+                Location  = new Point(20, 20),
+                Width     = Math.Max(400, ClientSize.Width - 40),
+                AutoSize  = true,
+                BackColor = Color.Transparent
+            };
+            Controls.Add(_mainContainer);
+
+            int y = 0;
 
             // ── Page title ─────────────────────────────────────────────────────
-            Controls.Add(new Label
+            _titleLabel = new Label
             {
                 Text      = "📊  ANALYTICS & CHARTS",
                 Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
                 ForeColor = TextDark,
                 AutoSize  = true,
-                Location  = new Point(20, y),
+                Location  = new Point(0, y),
                 BackColor = Color.Transparent
-            });
-            y += 30;
+            };
+            _mainContainer.Controls.Add(_titleLabel);
+            y += 32;
 
-            Controls.Add(new Label
+            _subTitleLabel = new Label
             {
-                Text      = "Visual analysis of simulation results — run a simulation first to populate charts.",
-                Font      = new Font("Segoe UI", 9f),
+                Text      = "Visual analysis of simulation results — run a simulation first to populate real-time charts.",
+                Font      = new Font("Segoe UI", 9.5f),
                 ForeColor = TextLight,
                 AutoSize  = true,
-                Location  = new Point(20, y),
+                Location  = new Point(0, y),
                 BackColor = Color.Transparent
-            });
-            y += 40;
+            };
+            _mainContainer.Controls.Add(_subTitleLabel);
+            y += 42;
 
-            int chartW = 490;
-            int chartH = 260;
-            int gap    = 16;
+            // ── 5 Chart Panels ─────────────────────────────────────────────────
+            _chartPanel1 = CreateChartPanel("Queue Length vs Time");
+            _chartPanel2 = CreateChartPanel("Customers in System vs Time");
+            _chartPanel3 = CreateChartPanel("Waiting Time Distribution");
+            _chartPanel4 = CreateChartPanel("Server Utilization");
+            _chartPanel5 = CreateChartPanel("Cumulative Arrivals vs Departures");
 
-            _chartPanel1 = CreateChartPanel("Queue Length vs Time",           20,          y, chartW, chartH);
-            _chartPanel2 = CreateChartPanel("Customers in System vs Time",    chartW + gap + 20, y, chartW, chartH);
             _chartPanel1.Paint += PaintQueueLengthChart;
             _chartPanel2.Paint += PaintSystemSizeChart;
-            y += chartH + gap;
-
-            _chartPanel3 = CreateChartPanel("Waiting Time Distribution",      20,          y, chartW, chartH);
-            _chartPanel4 = CreateChartPanel("Server Utilization",             chartW + gap + 20, y, chartW, chartH);
             _chartPanel3.Paint += PaintWaitingTimeChart;
             _chartPanel4.Paint += PaintUtilizationChart;
-            y += chartH + gap;
-
-            _chartPanel5 = CreateChartPanel("Cumulative Arrivals vs Departures", 20, y, chartW, chartH);
             _chartPanel5.Paint += PaintArrivalDepartureChart;
+
+            _mainContainer.Controls.Add(_chartPanel1);
+            _mainContainer.Controls.Add(_chartPanel2);
+            _mainContainer.Controls.Add(_chartPanel3);
+            _mainContainer.Controls.Add(_chartPanel4);
+            _mainContainer.Controls.Add(_chartPanel5);
+
+            Resize += (s, e) => PerformCustomLayout();
+            PerformCustomLayout();
         }
 
-        private Panel CreateChartPanel(string title, int x, int y, int w, int h)
+        private Panel CreateChartPanel(string title)
         {
             var panel = new Panel
             {
-                Location  = new Point(x, y),
-                Size      = new Size(w, h),
+                Size      = new Size(500, 290),
                 BackColor = CardBg
             };
 
@@ -97,13 +120,6 @@ namespace ImtiazQueueSimulator.Forms
 
                 var r = new Rectangle(0, 0, panel.Width - 1, panel.Height - 1);
 
-                // Drop shadow
-                using (var sb = new SolidBrush(Color.FromArgb(12, 0, 0, 0)))
-                {
-                    using var sp = RoundPath(new Rectangle(r.X + 2, r.Y + 2, r.Width, r.Height), 10);
-                    g.FillPath(sb, sp);
-                }
-
                 // Card fill
                 using (var bgb = new SolidBrush(CardBg))
                 {
@@ -112,7 +128,7 @@ namespace ImtiazQueueSimulator.Forms
                 }
 
                 // Border
-                using (var pen = new Pen(Border, 1f))
+                using (var pen = new Pen(Border, 1.2f))
                 {
                     using var cp = RoundPath(r, 10);
                     g.DrawPath(pen, cp);
@@ -129,14 +145,67 @@ namespace ImtiazQueueSimulator.Forms
                 // Title text
                 using var tf = new Font("Segoe UI Semibold", 9.5f);
                 using var tb = new SolidBrush(TextDark);
-                g.DrawString(title, tf, tb, 14, 12);
+                g.DrawString(title, tf, tb, 14, 10);
             };
 
-            Controls.Add(panel);
             return panel;
         }
 
-        // ── Public API (unchanged) ─────────────────────────────────────────────
+        private void PerformCustomLayout()
+        {
+            if (_mainContainer == null || _chartPanel1 == null) return;
+
+            int availW = Math.Max(400, ClientSize.Width - 40);
+            _mainContainer.Width = availW;
+
+            bool isWide = availW >= 880;
+            int gap = 20;
+            int chartH = 290;
+
+            int chartW = isWide ? (availW - gap) / 2 : availW;
+
+            _chartPanel1.Size = new Size(chartW, chartH);
+            _chartPanel2.Size = new Size(chartW, chartH);
+            _chartPanel3.Size = new Size(chartW, chartH);
+            _chartPanel4.Size = new Size(chartW, chartH);
+            _chartPanel5.Size = new Size(isWide ? availW : chartW, chartH);
+
+            int startY = 74;
+
+            if (isWide)
+            {
+                // Row 1
+                _chartPanel1.Location = new Point(0, startY);
+                _chartPanel2.Location = new Point(chartW + gap, startY);
+
+                // Row 2
+                int r2Y = startY + chartH + gap;
+                _chartPanel3.Location = new Point(0, r2Y);
+                _chartPanel4.Location = new Point(chartW + gap, r2Y);
+
+                // Row 3
+                int r3Y = r2Y + chartH + gap;
+                _chartPanel5.Location = new Point(0, r3Y);
+
+                _mainContainer.Height = r3Y + chartH + 30;
+            }
+            else
+            {
+                // Single column layout
+                int currY = startY;
+                _chartPanel1.Location = new Point(0, currY); currY += chartH + gap;
+                _chartPanel2.Location = new Point(0, currY); currY += chartH + gap;
+                _chartPanel3.Location = new Point(0, currY); currY += chartH + gap;
+                _chartPanel4.Location = new Point(0, currY); currY += chartH + gap;
+                _chartPanel5.Location = new Point(0, currY); currY += chartH + gap;
+
+                _mainContainer.Height = currY + 10;
+            }
+
+            AutoScrollMinSize = new Size(0, _mainContainer.Bottom + 30);
+        }
+
+        // ── Public API ─────────────────────────────────────────────────────────
 
         public void LoadResults(SimulationResult result)
         {
@@ -148,42 +217,75 @@ namespace ImtiazQueueSimulator.Forms
             _chartPanel5.Invalidate();
         }
 
-        // ── Chart rendering (unchanged logic) ──────────────────────────────────
+        // ── Chart rendering ────────────────────────────────────────────────────
+
+        private Rectangle GetPlotArea(Panel panel)
+        {
+            // Top: 48px (below header), Left: 55px (for Y ticks & label), Right margin: 25px, Bottom margin: 55px (for X ticks & label)
+            return new Rectangle(55, 48, Math.Max(50, panel.Width - 80), Math.Max(50, panel.Height - 105));
+        }
 
         private void PaintQueueLengthChart(object? sender, PaintEventArgs e)
         {
-            if (_result == null || _result.QueueLengthOverTime.Count < 2) return;
-            DrawLineChart(e.Graphics, (Panel)sender!,
+            var panel = (Panel)sender!;
+            var g = e.Graphics;
+            var area = GetPlotArea(panel);
+
+            if (_result == null || _result.QueueLengthOverTime.Count < 2)
+            {
+                DrawEmptyState(g, area, "Run a simulation to generate Queue Length data.");
+                return;
+            }
+
+            DrawLineChart(g, area,
                 _result.QueueLengthOverTime.Select(p => (p.Time, (double)p.QueueLength)).ToList(),
-                Color.FromArgb(220, 38, 38), "Time (h)", "Queue Length");
+                Color.FromArgb(220, 38, 38), "Time (hours)", "Queue Length (Lq)");
         }
 
         private void PaintSystemSizeChart(object? sender, PaintEventArgs e)
         {
-            if (_result == null || _result.SystemSizeOverTime.Count < 2) return;
-            DrawLineChart(e.Graphics, (Panel)sender!,
+            var panel = (Panel)sender!;
+            var g = e.Graphics;
+            var area = GetPlotArea(panel);
+
+            if (_result == null || _result.SystemSizeOverTime.Count < 2)
+            {
+                DrawEmptyState(g, area, "Run a simulation to generate Customers in System data.");
+                return;
+            }
+
+            DrawLineChart(g, area,
                 _result.SystemSizeOverTime.Select(p => (p.Time, (double)p.SystemSize)).ToList(),
-                Color.FromArgb(37, 99, 235), "Time (h)", "In System");
+                Color.FromArgb(37, 99, 235), "Time (hours)", "Customers in System (L)");
         }
 
         private void PaintWaitingTimeChart(object? sender, PaintEventArgs e)
         {
-            if (_result == null || _result.AllCustomers.Count == 0) return;
+            var panel = (Panel)sender!;
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            var panel = (Panel)sender!;
-            var area  = new Rectangle(50, 50, panel.Width - 70, panel.Height - 70);
+            var area = GetPlotArea(panel);
+
+            if (_result == null || _result.AllCustomers.Count == 0)
+            {
+                DrawEmptyState(g, area, "Run a simulation to generate Wait Time Distribution.");
+                return;
+            }
 
             var waitTimes = _result.AllCustomers
                 .Where(c => c.Status == "Completed")
                 .Select(c => c.WaitingTime * 60)
                 .ToList();
-            if (waitTimes.Count == 0) return;
 
-            double maxWait  = waitTimes.Max();
-            int    numBins  = Math.Min(20, Math.Max(5, waitTimes.Count / 10));
+            if (waitTimes.Count == 0)
+            {
+                DrawEmptyState(g, area, "No completed customers to calculate waiting times.");
+                return;
+            }
+
+            double maxWait  = Math.Max(0.1, waitTimes.Max());
+            int    numBins  = Math.Min(15, Math.Max(5, waitTimes.Count / 8));
             double binWidth = maxWait / numBins;
-            if (binWidth <= 0) binWidth = 1;
 
             int[] bins = new int[numBins];
             foreach (var w in waitTimes)
@@ -193,79 +295,115 @@ namespace ImtiazQueueSimulator.Forms
                 if (bin >= 0) bins[bin]++;
             }
 
-            int maxCount = bins.Max();
-            if (maxCount == 0) return;
+            int maxCount = Math.Max(1, bins.Max());
 
-            int barW = area.Width / numBins;
+            DrawBackgroundGrid(g, area, maxCount, "Count");
+
+            int barW = Math.Max(4, area.Width / numBins);
             for (int i = 0; i < numBins; i++)
             {
                 int barH = (int)((double)bins[i] / maxCount * area.Height);
                 int bx = area.X + i * barW;
                 int by = area.Bottom - barH;
+
                 using var brush = new SolidBrush(Color.FromArgb(180, 217, 119, 6));
                 g.FillRectangle(brush, bx + 1, by, barW - 2, barH);
                 using var outline = new Pen(Color.FromArgb(217, 119, 6), 1f);
                 g.DrawRectangle(outline, bx + 1, by, barW - 2, barH);
+
+                if (barH > 14)
+                {
+                    using var f = new Font("Segoe UI Semibold", 7.5f);
+                    using var b = new SolidBrush(Color.FromArgb(30, 41, 59));
+                    g.DrawString(bins[i].ToString(), f, b, new RectangleF(bx, by - 14, barW, 14),
+                        new StringFormat { Alignment = StringAlignment.Center });
+                }
             }
-            DrawAxes(g, area, "Wait Time (min)", "Count");
+
+            DrawAxesAndLabels(g, area, "Wait Time (minutes)", "Customer Count");
         }
 
         private void PaintUtilizationChart(object? sender, PaintEventArgs e)
         {
-            if (_result == null || _result.ServerUtilizations.Length == 0) return;
-            var g     = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
             var panel = (Panel)sender!;
-            var area  = new Rectangle(50, 50, panel.Width - 70, panel.Height - 70);
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            var area = GetPlotArea(panel);
 
-            int    n        = _result.ServerUtilizations.Length;
-            int    barW     = Math.Min(60, area.Width / n);
-            int    totalW   = barW * n;
-            int    startX   = area.X + (area.Width - totalW) / 2;
+            if (_result == null || _result.ServerUtilizations.Length == 0)
+            {
+                DrawEmptyState(g, area, "Run a simulation to view Server Utilization.");
+                return;
+            }
+
+            int n = _result.ServerUtilizations.Length;
+            DrawBackgroundGrid(g, area, 100, "%");
+
+            int barW   = Math.Min(70, Math.Max(20, area.Width / (n * 2)));
+            int groupW = area.Width / n;
 
             var sfCenter = new StringFormat
             {
                 Alignment     = StringAlignment.Center,
-                LineAlignment = StringAlignment.Center,
+                LineAlignment = StringAlignment.Near,
                 Trimming      = StringTrimming.EllipsisCharacter
             };
 
             for (int i = 0; i < n; i++)
             {
                 double util = _result.ServerUtilizations[i];
-                int    barH = (int)(util * area.Height);
-                int    bx   = startX + i * barW;
-                int    by   = area.Bottom - barH;
+                int barH = (int)(Math.Min(1.0, util) * area.Height);
+                int bx   = area.X + i * groupW + (groupW - barW) / 2;
+                int by   = area.Bottom - barH;
 
                 Color barColor = util > 0.85 ? Color.FromArgb(220, 38, 38)
                                : util > 0.65 ? Color.FromArgb(217, 119, 6)
                                : Color.FromArgb(22, 163, 74);
 
                 using (var brush = new SolidBrush(Color.FromArgb(200, barColor)))
-                    g.FillRectangle(brush, bx + 3, by, barW - 6, barH);
-                using (var outline = new Pen(barColor, 1f))
-                    g.DrawRectangle(outline, bx + 3, by, barW - 6, barH);
+                    g.FillRectangle(brush, bx, by, barW, barH);
+                using (var outline = new Pen(barColor, 1.2f))
+                    g.DrawRectangle(outline, bx, by, barW, barH);
 
-                using var f = new Font("Segoe UI", 7.5f, FontStyle.Bold);
-                using var b = new SolidBrush(TextLight);
-                g.DrawString($"C{i + 1}", f, b, new RectangleF(bx, area.Bottom + 4, barW, 16), sfCenter);
-                g.DrawString($"{util * 100:F0}%", f, b, new RectangleF(bx - 10, Math.Max(area.Y, by - 16), barW + 20, 16), sfCenter);
+                // Percentage text above bar
+                using (var valFont = new Font("Segoe UI Bold", 8.5f))
+                using (var valBrush = new SolidBrush(TextDark))
+                {
+                    g.DrawString($"{util * 100:F0}%", valFont, valBrush,
+                        new RectangleF(bx - 10, Math.Max(area.Y - 2, by - 16), barW + 20, 16),
+                        new StringFormat { Alignment = StringAlignment.Center });
+                }
+
+                // X-axis cashier label cleanly positioned below baseline with zero overlap
+                using (var lblFont = new Font("Segoe UI Semibold", 8f))
+                using (var lblBrush = new SolidBrush(TextMid))
+                {
+                    g.DrawString($"Cashier {i + 1:D2}", lblFont, lblBrush,
+                        new RectangleF(bx - 15, area.Bottom + 6, barW + 30, 18), sfCenter);
+                }
             }
-            DrawAxes(g, area, "Cashier", "Utilization");
+
+            DrawAxesAndLabels(g, area, "Checkout Cashiers", "Utilization (%)");
         }
 
         private void PaintArrivalDepartureChart(object? sender, PaintEventArgs e)
         {
-            if (_result == null || _result.ArrivalDepartureOverTime.Count < 2) return;
-            var g     = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
             var panel = (Panel)sender!;
-            var area  = new Rectangle(50, 50, panel.Width - 70, panel.Height - 70);
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            var area = GetPlotArea(panel);
 
-            var    data    = _result.ArrivalDepartureOverTime;
-            double maxTime = data.Max(d => d.Time);
-            int    maxVal  = data.Max(d => Math.Max(d.Arrivals, d.Departures));
-            if (maxTime <= 0 || maxVal <= 0) return;
+            if (_result == null || _result.ArrivalDepartureOverTime.Count < 2)
+            {
+                DrawEmptyState(g, area, "Run a simulation to generate Arrivals vs Departures data.");
+                return;
+            }
+
+            var data = _result.ArrivalDepartureOverTime;
+            double maxTime = Math.Max(0.001, data.Max(d => d.Time));
+            int maxVal = Math.Max(1, data.Max(d => Math.Max(d.Arrivals, d.Departures)));
+
+            DrawBackgroundGrid(g, area, maxVal, "Count");
 
             var arrPoints = data.Select(d => new PointF(
                 area.X + (float)(d.Time / maxTime * area.Width),
@@ -276,6 +414,10 @@ namespace ImtiazQueueSimulator.Forms
                 area.X + (float)(d.Time / maxTime * area.Width),
                 area.Bottom - (float)((double)d.Departures / maxVal * area.Height)
             )).ToArray();
+
+            // Set clip region strictly inside area so line never leaks below area.Bottom
+            var oldClip = g.Clip;
+            g.SetClip(new Rectangle(area.X - 1, area.Y - 1, area.Width + 3, area.Height + 3));
 
             if (arrPoints.Length >= 2)
             {
@@ -288,32 +430,35 @@ namespace ImtiazQueueSimulator.Forms
                 g.DrawLines(depPen, depPoints);
             }
 
-            // Dedicated Legend Box container in top-right
-            int legX = area.Right - 110;
-            int legY = area.Y + 4;
-            var legBox = new Rectangle(legX, legY, 105, 34);
-            using (var legBg = new SolidBrush(Color.FromArgb(220, 255, 255, 255)))
+            g.Clip = oldClip;
+
+            // Dedicated Legend Box in top-left (so it doesn't collide with line ends)
+            int legX = area.X + 10;
+            int legY = area.Y + 8;
+            var legBox = new Rectangle(legX, legY, 115, 38);
+            using (var legBg = new SolidBrush(Color.FromArgb(235, 255, 255, 255)))
                 g.FillRectangle(legBg, legBox);
             using (var legPen = new Pen(Border, 1f))
                 g.DrawRectangle(legPen, legBox);
 
             using var lf = new Font("Segoe UI Semibold", 8f);
-            g.FillRectangle(new SolidBrush(Color.FromArgb(22, 163, 74)), legX + 6, legY + 6, 10, 10);
-            g.DrawString("Arrivals",   lf, new SolidBrush(TextDark), legX + 20, legY + 4);
-            g.FillRectangle(new SolidBrush(Color.FromArgb(220, 38, 38)), legX + 6, legY + 19, 10, 10);
-            g.DrawString("Departures", lf, new SolidBrush(TextDark), legX + 20, legY + 17);
+            g.FillRectangle(new SolidBrush(Color.FromArgb(22, 163, 74)), legX + 8, legY + 8, 10, 10);
+            g.DrawString("Arrivals", lf, new SolidBrush(TextDark), legX + 22, legY + 5);
+            g.FillRectangle(new SolidBrush(Color.FromArgb(220, 38, 38)), legX + 8, legY + 22, 10, 10);
+            g.DrawString("Departures", lf, new SolidBrush(TextDark), legX + 22, legY + 19);
 
-            DrawAxes(g, area, "Time (h)", "Count");
+            DrawAxesAndLabels(g, area, "Time (hours)", "Total Customers");
         }
 
-        private void DrawLineChart(Graphics g, Panel panel, List<(double X, double Y)> data,
+        private void DrawLineChart(Graphics g, Rectangle area, List<(double X, double Y)> data,
             Color lineColor, string xLabel, string yLabel)
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            var area = new Rectangle(50, 50, panel.Width - 70, panel.Height - 70);
 
-            double maxX = data.Max(d => d.X); if (maxX <= 0) maxX = 1;
-            double maxY = data.Max(d => d.Y); if (maxY <= 0) maxY = 1;
+            double maxX = Math.Max(0.001, data.Max(d => d.X));
+            double maxY = Math.Max(1.0, data.Max(d => d.Y));
+
+            DrawBackgroundGrid(g, area, maxY, yLabel);
 
             var points = data;
             if (points.Count > 500)
@@ -329,32 +474,72 @@ namespace ImtiazQueueSimulator.Forms
 
             if (gdiPoints.Length >= 2)
             {
+                var oldClip = g.Clip;
+                g.SetClip(new Rectangle(area.X - 1, area.Y - 1, area.Width + 3, area.Height + 3));
+
                 var fillPoints = new List<PointF>(gdiPoints);
                 fillPoints.Add(new PointF(gdiPoints.Last().X, area.Bottom));
                 fillPoints.Add(new PointF(gdiPoints.First().X, area.Bottom));
-                using var fillBrush = new SolidBrush(Color.FromArgb(25, lineColor));
-                g.FillPolygon(fillBrush, fillPoints.ToArray());
 
-                using var linePen = new Pen(lineColor, 2f);
-                g.DrawLines(linePen, gdiPoints);
+                using (var fillBrush = new SolidBrush(Color.FromArgb(30, lineColor)))
+                    g.FillPolygon(fillBrush, fillPoints.ToArray());
+
+                using (var linePen = new Pen(lineColor, 2f))
+                    g.DrawLines(linePen, gdiPoints);
+
+                g.Clip = oldClip;
             }
-            DrawAxes(g, area, xLabel, yLabel);
+
+            DrawAxesAndLabels(g, area, xLabel, yLabel);
         }
 
-        private void DrawAxes(Graphics g, Rectangle area, string xLabel, string yLabel)
+        private void DrawBackgroundGrid(Graphics g, Rectangle area, double maxY, string yLabel)
         {
-            using var axisPen = new Pen(Border, 1f);
+            using var gridPen = new Pen(GridLinePen, 1f) { DashStyle = DashStyle.Dash };
+            using var font = new Font("Segoe UI", 7.5f);
+            using var brush = new SolidBrush(TextLight);
+
+            int numTicks = 4;
+            for (int i = 0; i <= numTicks; i++)
+            {
+                float y = area.Bottom - (float)i / numTicks * area.Height;
+                g.DrawLine(gridPen, area.X, y, area.Right, y);
+
+                double val = (double)i / numTicks * maxY;
+                string valStr = maxY >= 10 ? $"{val:F0}" : $"{val:F1}";
+                g.DrawString(valStr, font, brush, new RectangleF(area.X - 48, y - 6, 42, 14),
+                    new StringFormat { Alignment = StringAlignment.Far });
+            }
+        }
+
+        private void DrawAxesAndLabels(Graphics g, Rectangle area, string xLabel, string yLabel)
+        {
+            // Axes Lines
+            using var axisPen = new Pen(Border, 1.2f);
             g.DrawLine(axisPen, area.X, area.Bottom, area.Right, area.Bottom);
             g.DrawLine(axisPen, area.X, area.Y, area.X, area.Bottom);
 
-            using var font  = new Font("Segoe UI", 7.5f);
-            using var brush = new SolidBrush(TextLight);
-            g.DrawString(xLabel, font, brush, area.X + area.Width / 2 - 20, area.Bottom + 8);
+            using var font = new Font("Segoe UI Semibold", 8.5f);
+            using var brush = new SolidBrush(TextMid);
+
+            // X-Axis Label (Placed at area.Bottom + 26px, giving 25px clear gap below ticks!)
+            var sfCenter = new StringFormat { Alignment = StringAlignment.Center };
+            g.DrawString(xLabel, font, brush, new RectangleF(area.X, area.Bottom + 26, area.Width, 20), sfCenter);
+
+            // Y-Axis Rotated Label (Rotated smoothly around left margin)
             var state = g.Save();
-            g.TranslateTransform(area.X - 32, area.Y + area.Height / 2 + 20);
+            g.TranslateTransform(14, area.Y + area.Height / 2);
             g.RotateTransform(-90);
-            g.DrawString(yLabel, font, brush, 0, 0);
+            g.DrawString(yLabel, font, brush, new RectangleF(-area.Height / 2, -10, area.Height, 20), sfCenter);
             g.Restore(state);
+        }
+
+        private void DrawEmptyState(Graphics g, Rectangle area, string message)
+        {
+            using var font = new Font("Segoe UI Semibold", 9f);
+            using var brush = new SolidBrush(TextLight);
+            var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+            g.DrawString($"ℹ  {message}", font, brush, area, sf);
         }
 
         private GraphicsPath RoundPath(Rectangle r, int rad)
