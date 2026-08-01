@@ -1,0 +1,14 @@
+# Visual Studio / .NET build outputs
+[Bb]in/
+[Oo]bj/
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+# OS generated files
+Thumbs.db
+[Dd]esktop.ini
+.DS_Store
