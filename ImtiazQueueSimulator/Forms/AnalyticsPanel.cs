@@ -26,6 +26,8 @@ namespace ImtiazQueueSimulator.Forms
         private Panel _chartPanel4 = null!;
         private Panel _chartPanel5 = null!;
         private Panel _chartPanel6 = null!; // Gantt Chart
+        private ToolTip _ganttToolTip = new ToolTip();
+        private Customer? _lastHoveredCustomer = null;
 
         // ── Design tokens ──────────────────────────────────────────────────────
         private static readonly Color PageBg      = Color.FromArgb(244, 246, 250);
@@ -97,6 +99,7 @@ namespace ImtiazQueueSimulator.Forms
             _chartPanel4.Paint += PaintUtilizationChart;
             _chartPanel5.Paint += PaintArrivalDepartureChart;
             _chartPanel6.Paint += PaintGanttChart;
+            _chartPanel6.MouseMove += ChartPanel6_MouseMove;
 
             _mainContainer.Controls.Add(_chartPanel1);
             _mainContainer.Controls.Add(_chartPanel2);
@@ -579,43 +582,31 @@ namespace ImtiazQueueSimulator.Forms
                         }
                     }
 
-                    // Render Arrival Time on Left, Customer ID in Center, Departure Time on Right
-                    if (bw >= 130)
+                    // Render Arrival Time on Left, Customer ID in Center, Departure Time on Right ONLY when width permits!
+                    // If bw >= 150px: draw Arrival (left), Customer ID (center), Departure (right) with zero overlap.
+                    // If 40px <= bw < 150px: draw Customer ID ONLY (centered).
+                    // If bw < 40px: clean solid block (no text overlap/clutter).
+                    if (bw >= 150)
                     {
                         using var txtFont = new Font("Segoe UI Bold", 7.5f);
                         using var txtBrush = new SolidBrush(Color.White);
 
                         // Left: Arrival Time (e.g. 00:04:48)
                         string arrTime = Customer.FormatTime(c.ArrivalTime);
-                        g.DrawString(arrTime, txtFont, txtBrush, new RectangleF(bx1 + 4, barY, bw - 8, barH), sfLeft);
+                        g.DrawString(arrTime, txtFont, txtBrush, new RectangleF(bx1 + 6, barY, 48, barH), sfLeft);
 
                         // Center: Customer ID (e.g. C015)
                         g.DrawString($"C{c.Id:D3}", txtFont, txtBrush, blockRect, sfCenter);
 
                         // Right: Departure Time (e.g. 00:06:34)
                         string depTime = Customer.FormatTime(c.DepartureTime);
-                        g.DrawString(depTime, txtFont, txtBrush, new RectangleF(bx1 + 4, barY, bw - 8, barH), sfRight);
+                        g.DrawString(depTime, txtFont, txtBrush, new RectangleF(bx1 + bw - 54, barY, 48, barH), sfRight);
                     }
-                    else if (bw >= 70)
-                    {
-                        using var txtFont = new Font("Segoe UI Bold", 7f);
-                        using var txtBrush = new SolidBrush(Color.White);
-
-                        // Left: Short Arrival Time MM:SS (e.g. 04:48)
-                        string arrTime = FormatShortTime(c.ArrivalTime);
-                        g.DrawString(arrTime, txtFont, txtBrush, new RectangleF(bx1 + 3, barY, bw - 6, barH), sfLeft);
-
-                        // Center: Customer ID (e.g. C015)
-                        g.DrawString($"C{c.Id:D3}", txtFont, txtBrush, blockRect, sfCenter);
-
-                        // Right: Short Departure Time MM:SS (e.g. 06:34)
-                        string depTime = FormatShortTime(c.DepartureTime);
-                        g.DrawString(depTime, txtFont, txtBrush, new RectangleF(bx1 + 3, barY, bw - 6, barH), sfRight);
-                    }
-                    else if (bw >= 30)
+                    else if (bw >= 40)
                     {
                         using var txtFont = new Font("Segoe UI Bold", 7.5f);
                         using var txtBrush = new SolidBrush(Color.White);
+                        // Center: Customer ID (clean, zero overlap!)
                         g.DrawString($"C{c.Id:D3}", txtFont, txtBrush, blockRect, sfCenter);
                     }
                 }
@@ -637,11 +628,70 @@ namespace ImtiazQueueSimulator.Forms
             DrawAxesAndLabels(g, area, "Simulation Time (hours)", "Servers");
         }
 
-        private static string FormatShortTime(double hours)
+        private void ChartPanel6_MouseMove(object? sender, MouseEventArgs e)
         {
-            if (double.IsNaN(hours) || double.IsInfinity(hours)) return "--:--";
-            TimeSpan ts = TimeSpan.FromHours(hours);
-            return $"{(int)ts.TotalMinutes:D2}:{ts.Seconds:D2}";
+            if (_chartPanel6 == null) return;
+
+            if (_result == null || _result.AllCustomers.Count == 0)
+            {
+                _ganttToolTip.Hide(_chartPanel6);
+                _lastHoveredCustomer = null;
+                return;
+            }
+
+            var area = new Rectangle(90, 48, Math.Max(50, _chartPanel6.Width - 115), Math.Max(50, _chartPanel6.Height - 105));
+            if (!area.Contains(e.Location))
+            {
+                _ganttToolTip.Hide(_chartPanel6);
+                _lastHoveredCustomer = null;
+                return;
+            }
+
+            int numServers = Math.Max(1, _result.NumServers);
+            double maxTime = _result.AllCustomers.Where(c => c.Status == "Completed" || c.DepartureTime > 0)
+                                                 .Select(c => c.DepartureTime)
+                                                 .DefaultIfEmpty(_result.SimulationTime)
+                                                 .Max();
+            if (maxTime <= 0) maxTime = Math.Max(1.0, _result.SimulationTime);
+
+            int trackH = area.Height / numServers;
+            int serverIndex = (e.Y - area.Y) / trackH + 1;
+
+            if (serverIndex < 1 || serverIndex > numServers)
+            {
+                _ganttToolTip.Hide(_chartPanel6);
+                _lastHoveredCustomer = null;
+                return;
+            }
+
+            double timeAtMouse = (e.X - area.X) / (double)area.Width * maxTime;
+
+            var hoveredCust = _result.AllCustomers.FirstOrDefault(c =>
+                c.AssignedServer == serverIndex &&
+                c.ServiceStartTime <= timeAtMouse &&
+                (c.DepartureTime > c.ServiceStartTime ? c.DepartureTime : maxTime) >= timeAtMouse);
+
+            if (hoveredCust != null)
+            {
+                if (hoveredCust != _lastHoveredCustomer)
+                {
+                    _lastHoveredCustomer = hoveredCust;
+                    string tipText =
+                        $"👤 {hoveredCust.Name} (Cashier {serverIndex:D2})\n" +
+                        $"⏱ Store Arrival: {Customer.FormatTime(hoveredCust.ArrivalTime)}\n" +
+                        $"⚡ Service Start: {Customer.FormatTime(hoveredCust.ServiceStartTime)}\n" +
+                        $"🏁 Departure:    {Customer.FormatTime(hoveredCust.DepartureTime)}\n" +
+                        $"⏳ Wait Time:    {Customer.FormatDuration(hoveredCust.WaitingTime)}\n" +
+                        $"💳 Service Time: {Customer.FormatDuration(hoveredCust.ServiceTime)}";
+
+                    _ganttToolTip.Show(tipText, _chartPanel6, e.X + 15, e.Y + 15, 3000);
+                }
+            }
+            else
+            {
+                _ganttToolTip.Hide(_chartPanel6);
+                _lastHoveredCustomer = null;
+            }
         }
 
         private void DrawGanttBackgroundGrid(Graphics g, Rectangle area, double maxTime)
