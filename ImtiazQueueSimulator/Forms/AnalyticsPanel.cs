@@ -169,7 +169,7 @@ namespace ImtiazQueueSimulator.Forms
             int chartW = isWide ? (availW - gap) / 2 : availW;
 
             int numServers = _result != null && _result.NumServers > 0 ? _result.NumServers : 1;
-            int ganttH = Math.Max(290, 85 + numServers * 42);
+            int ganttH = Math.Max(290, 85 + numServers * 45);
 
             _chartPanel1.Size = new Size(chartW, chartH);
             _chartPanel2.Size = new Size(chartW, chartH);
@@ -486,7 +486,7 @@ namespace ImtiazQueueSimulator.Forms
                                                  .Max();
             if (maxTime <= 0) maxTime = Math.Max(1.0, _result.SimulationTime);
 
-            // Draw vertical time grid lines and bottom timestamps
+            // Draw vertical time grid lines and bottom timestamps (with 80px label width preventing truncation)
             DrawGanttBackgroundGrid(g, area, maxTime);
 
             int trackH = area.Height / numServers;
@@ -501,14 +501,15 @@ namespace ImtiazQueueSimulator.Forms
                 Color.FromArgb(14, 165, 233)   // Sky Blue
             };
 
-            var sfRight = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center };
+            var sfRight  = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center };
+            var sfLeft   = new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center };
             var sfCenter = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
 
             for (int s = 1; s <= numServers; s++)
             {
                 int trackY = area.Y + (s - 1) * trackH;
-                int barY   = trackY + Math.Max(3, (trackH - 26) / 2);
-                int barH   = Math.Min(26, trackH - 6);
+                int barY   = trackY + Math.Max(3, (trackH - 28) / 2);
+                int barH   = Math.Min(28, trackH - 6);
 
                 // 1. Cashier track label on left
                 using (var lblFont = new Font("Segoe UI Semibold", 8.5f))
@@ -578,8 +579,40 @@ namespace ImtiazQueueSimulator.Forms
                         }
                     }
 
-                    // Render Customer ID text inside block if width permits
-                    if (bw >= 32)
+                    // Render Arrival Time on Left, Customer ID in Center, Departure Time on Right
+                    if (bw >= 130)
+                    {
+                        using var txtFont = new Font("Segoe UI Bold", 7.5f);
+                        using var txtBrush = new SolidBrush(Color.White);
+
+                        // Left: Arrival Time (e.g. 00:04:48)
+                        string arrTime = Customer.FormatTime(c.ArrivalTime);
+                        g.DrawString(arrTime, txtFont, txtBrush, new RectangleF(bx1 + 4, barY, bw - 8, barH), sfLeft);
+
+                        // Center: Customer ID (e.g. C015)
+                        g.DrawString($"C{c.Id:D3}", txtFont, txtBrush, blockRect, sfCenter);
+
+                        // Right: Departure Time (e.g. 00:06:34)
+                        string depTime = Customer.FormatTime(c.DepartureTime);
+                        g.DrawString(depTime, txtFont, txtBrush, new RectangleF(bx1 + 4, barY, bw - 8, barH), sfRight);
+                    }
+                    else if (bw >= 70)
+                    {
+                        using var txtFont = new Font("Segoe UI Bold", 7f);
+                        using var txtBrush = new SolidBrush(Color.White);
+
+                        // Left: Short Arrival Time MM:SS (e.g. 04:48)
+                        string arrTime = FormatShortTime(c.ArrivalTime);
+                        g.DrawString(arrTime, txtFont, txtBrush, new RectangleF(bx1 + 3, barY, bw - 6, barH), sfLeft);
+
+                        // Center: Customer ID (e.g. C015)
+                        g.DrawString($"C{c.Id:D3}", txtFont, txtBrush, blockRect, sfCenter);
+
+                        // Right: Short Departure Time MM:SS (e.g. 06:34)
+                        string depTime = FormatShortTime(c.DepartureTime);
+                        g.DrawString(depTime, txtFont, txtBrush, new RectangleF(bx1 + 3, barY, bw - 6, barH), sfRight);
+                    }
+                    else if (bw >= 30)
                     {
                         using var txtFont = new Font("Segoe UI Bold", 7.5f);
                         using var txtBrush = new SolidBrush(Color.White);
@@ -604,6 +637,13 @@ namespace ImtiazQueueSimulator.Forms
             DrawAxesAndLabels(g, area, "Simulation Time (hours)", "Servers");
         }
 
+        private static string FormatShortTime(double hours)
+        {
+            if (double.IsNaN(hours) || double.IsInfinity(hours)) return "--:--";
+            TimeSpan ts = TimeSpan.FromHours(hours);
+            return $"{(int)ts.TotalMinutes:D2}:{ts.Seconds:D2}";
+        }
+
         private void DrawGanttBackgroundGrid(Graphics g, Rectangle area, double maxTime)
         {
             using var gridPen = new Pen(GridLinePen, 1f) { DashStyle = DashStyle.Dash };
@@ -618,7 +658,8 @@ namespace ImtiazQueueSimulator.Forms
 
                 double t = (double)i / numTicks * maxTime;
                 string timeStr = Customer.FormatTime(t);
-                g.DrawString(timeStr, font, brush, new RectangleF(x - 30, area.Bottom + 4, 60, 16),
+                // 80px label width prevents 04:33:12 truncation to 04:33:1
+                g.DrawString(timeStr, font, brush, new RectangleF(x - 40, area.Bottom + 4, 80, 16),
                     new StringFormat { Alignment = StringAlignment.Center });
             }
         }
