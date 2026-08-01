@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using ImtiazQueueSimulator.Models;
 
@@ -9,14 +12,15 @@ namespace ImtiazQueueSimulator.Forms
     /// Features:
     ///   - Event Legend bar (🟢 Start, 🟡 Joined Queue, 🔵 Service Started, 🔴 Departed)
     ///   - Color-coded grid rows with subtle background tint matching event types
-    ///   - Proper fixed column widths preventing text collision
-    ///   - Empty state label when no history snapshots exist
+    ///   - Clean auto-proportioned column widths preventing text truncation
+    ///   - Event Timeline with structured, non-overlapping cards and dynamic layout
     /// </summary>
     public class QueueHistoryPanel : UserControl
     {
         private DataGridView _grid = null!;
-        private Panel _timelinePanel = null!;
+        private FlowLayoutPanel _timelineFlow = null!;
         private Label _emptyLabel = null!;
+        private List<QueueSnapshot> _currentSnapshots = new();
 
         public QueueHistoryPanel()
         {
@@ -42,7 +46,7 @@ namespace ImtiazQueueSimulator.Forms
             var legendPanel = new Panel
             {
                 Location  = new Point(15, legendY),
-                Height    = 34,
+                Height    = 36,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 BackColor = Color.White
             };
@@ -53,11 +57,11 @@ namespace ImtiazQueueSimulator.Forms
             };
             Controls.Add(legendPanel);
 
-            int lx = 12;
+            int lx = 16;
             AddLegendItem(legendPanel, "🟢 Simulation Start", Color.FromArgb(22, 163, 74), ref lx);
             AddLegendItem(legendPanel, "🟡 Joined Queue",     Color.FromArgb(217, 119, 6), ref lx);
             AddLegendItem(legendPanel, "🔵 Service Started", Color.FromArgb(37, 99, 235), ref lx);
-            AddLegendItem(legendPanel, "🔴 Departed",       Color.FromArgb(220, 38, 38), ref lx);
+            AddLegendItem(legendPanel, "🔴 Departed",        Color.FromArgb(220, 38, 38), ref lx);
 
             int emptyY = legendPanel.Bottom + 10;
 
@@ -82,7 +86,7 @@ namespace ImtiazQueueSimulator.Forms
                 Size             = new Size(Math.Max(100, Width - 30), Math.Max(100, Height - contentY - 15)),
                 Anchor           = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
                 Orientation      = Orientation.Vertical,
-                SplitterDistance = 600,
+                SplitterDistance = 640,
                 BackColor        = Color.FromArgb(244, 246, 250)
             };
             Controls.Add(splitContainer);
@@ -93,7 +97,7 @@ namespace ImtiazQueueSimulator.Forms
                 splitContainer.Size = new Size(Math.Max(100, Width - 30), Math.Max(100, Height - contentY - 15));
             };
 
-            // Left: snapshot table
+            // ── Left: Snapshot Table ──────────────────────────────────────────
             var gridLabel = new Label
             {
                 Text      = "SNAPSHOT LOG",
@@ -116,37 +120,40 @@ namespace ImtiazQueueSimulator.Forms
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
                 Font = new Font("Segoe UI", 9f),
-                RowTemplate = { Height = 32 },
+                RowTemplate = { Height = 34 },
                 GridColor = Color.FromArgb(241, 245, 249),
                 ColumnHeadersDefaultCellStyle =
                 {
                     BackColor = Color.FromArgb(248, 250, 252),
                     ForeColor = Color.FromArgb(71, 85, 105),
                     Font = new Font("Segoe UI Semibold", 9f),
-                    Padding = new Padding(4)
+                    Padding = new Padding(6, 4, 6, 4)
+                },
+                DefaultCellStyle =
+                {
+                    Padding = new Padding(4, 0, 4, 0)
                 },
                 EnableHeadersVisualStyles = false,
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
             };
 
-            _grid.Columns.AddRange(new DataGridViewColumn[]
-            {
-                new DataGridViewTextBoxColumn { Name = "Time",     HeaderText = "Time",       Width = 75 },
-                new DataGridViewTextBoxColumn { Name = "Event",    HeaderText = "Event",      Width = 140 },
-                new DataGridViewTextBoxColumn { Name = "Customer", HeaderText = "Customer",   Width = 130 },
-                new DataGridViewTextBoxColumn { Name = "Queue",    HeaderText = "Queue",      Width = 60 },
-                new DataGridViewTextBoxColumn { Name = "System",   HeaderText = "System",     Width = 60 },
-                new DataGridViewTextBoxColumn { Name = "Busy",     HeaderText = "Busy Svrs",  Width = 75 }
-            });
+            var colTime     = new DataGridViewTextBoxColumn { Name = "Time",     HeaderText = "Time",         MinimumWidth = 80,  FillWeight = 14, HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleCenter } }, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter } };
+            var colEvent    = new DataGridViewTextBoxColumn { Name = "Event",    HeaderText = "Event",        MinimumWidth = 140, FillWeight = 24 };
+            var colCustomer = new DataGridViewTextBoxColumn { Name = "Customer", HeaderText = "Customer",     MinimumWidth = 200, FillWeight = 40 }; // Prevents truncation!
+            var colQueue    = new DataGridViewTextBoxColumn { Name = "Queue",    HeaderText = "Queue",        MinimumWidth = 65,  FillWeight = 7,  HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleCenter } }, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter } };
+            var colSystem   = new DataGridViewTextBoxColumn { Name = "System",   HeaderText = "System",       MinimumWidth = 65,  FillWeight = 7,  HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleCenter } }, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter } };
+            var colBusy     = new DataGridViewTextBoxColumn { Name = "Busy",     HeaderText = "Busy Servers", MinimumWidth = 90,  FillWeight = 10, HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleCenter } }, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter } };
+
+            _grid.Columns.AddRange(new DataGridViewColumn[] { colTime, colEvent, colCustomer, colQueue, colSystem, colBusy });
             _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
             splitContainer.Panel1.Controls.Add(_grid);
             splitContainer.Panel1.Resize += (s, e) =>
             {
-                _grid.Size = new Size(splitContainer.Panel1.Width - 10, splitContainer.Panel1.Height - 30);
+                _grid.Size = new Size(Math.Max(50, splitContainer.Panel1.Width - 10), Math.Max(50, splitContainer.Panel1.Height - 30));
             };
 
-            // Right: event timeline
+            // ── Right: Event Timeline ─────────────────────────────────────────
             var timelineLabel = new Label
             {
                 Text      = "EVENT TIMELINE",
@@ -157,22 +164,27 @@ namespace ImtiazQueueSimulator.Forms
             };
             splitContainer.Panel2.Controls.Add(timelineLabel);
 
-            _timelinePanel = new Panel
+            _timelineFlow = new FlowLayoutPanel
             {
-                Location   = new Point(5, 26),
-                BackColor  = Color.White,
-                AutoScroll = true,
-                Anchor     = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
+                Location      = new Point(5, 26),
+                BackColor     = Color.White,
+                AutoScroll    = true,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents  = false,
+                Padding       = new Padding(10),
+                Anchor        = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
             };
-            _timelinePanel.Paint += (s, e) =>
+            _timelineFlow.Paint += (s, e) =>
             {
                 using var pen = new Pen(Color.FromArgb(226, 232, 240), 1f);
-                e.Graphics.DrawRectangle(pen, 0, 0, _timelinePanel.Width - 1, _timelinePanel.Height - 1);
+                e.Graphics.DrawRectangle(pen, 0, 0, _timelineFlow.Width - 1, _timelineFlow.Height - 1);
             };
-            splitContainer.Panel2.Controls.Add(_timelinePanel);
+
+            splitContainer.Panel2.Controls.Add(_timelineFlow);
             splitContainer.Panel2.Resize += (s, e) =>
             {
-                _timelinePanel.Size = new Size(splitContainer.Panel2.Width - 10, splitContainer.Panel2.Height - 30);
+                _timelineFlow.Size = new Size(Math.Max(50, splitContainer.Panel2.Width - 10), Math.Max(50, splitContainer.Panel2.Height - 30));
+                UpdateTimelineItemWidths();
             };
         }
 
@@ -184,7 +196,7 @@ namespace ImtiazQueueSimulator.Forms
                 Font      = new Font("Segoe UI Semibold", 8.5f),
                 ForeColor = color,
                 AutoSize  = true,
-                Location  = new Point(x, 8)
+                Location  = new Point(x, 9)
             };
             parent.Controls.Add(lbl);
             x += lbl.PreferredWidth + 24;
@@ -192,11 +204,14 @@ namespace ImtiazQueueSimulator.Forms
 
         public void LoadSnapshots(List<QueueSnapshot> snapshots)
         {
+            _currentSnapshots = snapshots;
             _grid.Rows.Clear();
-            _timelinePanel.Controls.Clear();
+            _timelineFlow.Controls.Clear();
             _emptyLabel.Visible = snapshots.Count == 0;
 
-            int timelineY = 10;
+            _timelineFlow.SuspendLayout();
+
+            int cardWidth = Math.Max(200, _timelineFlow.ClientSize.Width - 28);
 
             foreach (var s in snapshots)
             {
@@ -221,19 +236,140 @@ namespace ImtiazQueueSimulator.Forms
                 };
                 _grid.Rows[rowIdx].DefaultCellStyle.BackColor = rowBg;
 
-                // Timeline Entry
-                var entry = new Label
-                {
-                    Text        = $"{s.EventIcon} {s.FormattedTime} — {s.EventDescription}: {s.CustomerInfo}",
-                    Font        = new Font("Segoe UI", 8.5f),
-                    ForeColor   = Color.FromArgb(30, 41, 59),
-                    AutoSize    = true,
-                    Location    = new Point(12, timelineY),
-                    MaximumSize = new Size(_timelinePanel.Width - 30, 0)
-                };
-                _timelinePanel.Controls.Add(entry);
-                timelineY += 24;
+                // Timeline Entry Card (Structured, zero text overlap)
+                var card = CreateTimelineCard(s, cardWidth);
+                _timelineFlow.Controls.Add(card);
             }
+
+            _timelineFlow.ResumeLayout(true);
+        }
+
+        private void UpdateTimelineItemWidths()
+        {
+            if (_timelineFlow == null || _timelineFlow.Controls.Count == 0) return;
+            int targetWidth = Math.Max(200, _timelineFlow.ClientSize.Width - 28);
+
+            _timelineFlow.SuspendLayout();
+            foreach (Control c in _timelineFlow.Controls)
+            {
+                if (c is Panel card)
+                {
+                    card.Width = targetWidth;
+                }
+            }
+            _timelineFlow.ResumeLayout(true);
+        }
+
+        private Panel CreateTimelineCard(QueueSnapshot s, int width)
+        {
+            Color accentColor = s.EventIcon switch
+            {
+                "🟢" => Color.FromArgb(22, 163, 74),   // Green
+                "🟡" => Color.FromArgb(217, 119, 6),   // Amber
+                "🔵" => Color.FromArgb(37, 99, 235),   // Blue
+                "🔴" => Color.FromArgb(220, 38, 38),   // Red
+                "✅" => Color.FromArgb(22, 163, 74),   // Green
+                _   => Color.FromArgb(100, 116, 139)
+            };
+
+            Color cardBg = s.EventIcon switch
+            {
+                "🟢" => Color.FromArgb(240, 253, 244),
+                "🟡" => Color.FromArgb(254, 252, 232),
+                "🔵" => Color.FromArgb(239, 246, 255),
+                "🔴" => Color.FromArgb(254, 242, 242),
+                "✅" => Color.FromArgb(240, 253, 244),
+                _   => Color.FromArgb(248, 250, 252)
+            };
+
+            Color borderColor = s.EventIcon switch
+            {
+                "🟢" => Color.FromArgb(187, 247, 208),
+                "🟡" => Color.FromArgb(254, 240, 138),
+                "🔵" => Color.FromArgb(191, 219, 254),
+                "🔴" => Color.FromArgb(254, 202, 202),
+                "✅" => Color.FromArgb(187, 247, 208),
+                _   => Color.FromArgb(226, 232, 240)
+            };
+
+            bool hasCustomerInfo = !string.IsNullOrWhiteSpace(s.CustomerInfo);
+            int cardHeight = hasCustomerInfo ? 54 : 36;
+
+            var card = new Panel
+            {
+                Size      = new Size(width, cardHeight),
+                BackColor = cardBg,
+                Margin    = new Padding(0, 0, 0, 8)
+            };
+
+            card.Paint += (sender, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                var r = new Rectangle(0, 0, card.Width - 1, card.Height - 1);
+                using var borderPen = new Pen(borderColor, 1f);
+                DrawRoundedRect(e.Graphics, borderPen, r, 6);
+
+                // Left accent bar (4px wide)
+                using var accentBrush = new SolidBrush(accentColor);
+                e.Graphics.FillRectangle(accentBrush, 0, 0, 4, card.Height);
+            };
+
+            // Event Header Label (Icon + Description)
+            var lblEvent = new Label
+            {
+                Text        = $"{s.EventIcon}  {s.EventDescription}",
+                Font        = new Font("Segoe UI Semibold", 9f),
+                ForeColor   = accentColor,
+                AutoSize    = true,
+                Location    = new Point(12, 8),
+                UseMnemonic = false
+            };
+            card.Controls.Add(lblEvent);
+
+            // Timestamp Badge (Right Aligned)
+            var lblTime = new Label
+            {
+                Text        = s.FormattedTime,
+                Font        = new Font("Segoe UI Bold", 9f),
+                ForeColor   = Color.FromArgb(30, 41, 59),
+                AutoSize    = true,
+                Location    = new Point(width - 75, 8),
+                Anchor      = AnchorStyles.Top | AnchorStyles.Right,
+                UseMnemonic = false
+            };
+            card.Controls.Add(lblTime);
+
+            // Sub-details: Customer Info (If present)
+            if (hasCustomerInfo)
+            {
+                var lblCustomer = new Label
+                {
+                    Text         = s.CustomerInfo,
+                    Font         = new Font("Segoe UI", 8.5f),
+                    ForeColor    = Color.FromArgb(51, 65, 85),
+                    AutoSize     = false,
+                    Size         = new Size(Math.Max(50, width - 24), 18),
+                    Location     = new Point(12, 28),
+                    AutoEllipsis = true,
+                    Anchor       = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                    UseMnemonic  = false
+                };
+                card.Controls.Add(lblCustomer);
+            }
+
+            return card;
+        }
+
+        private void DrawRoundedRect(Graphics g, Pen pen, Rectangle rect, int radius)
+        {
+            using var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+            path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+            path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            g.DrawPath(pen, path);
         }
     }
 }
