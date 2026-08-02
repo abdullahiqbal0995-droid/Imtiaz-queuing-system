@@ -118,18 +118,18 @@ namespace ImtiazQueueSimulator.Reports
 
             // ── Customer History ──
             sb.AppendLine("─── COMPLETE CUSTOMER HISTORY ───────────────────────────────────");
-            sb.AppendLine($"{"ID",-6} {"Name",-16} {"Arrival",-10} {"Svc Start",-10} {"Service",-10} {"Departure",-10} {"Wq",-10} {"W",-10} {"Server",-10} {"Status",-10}");
-            sb.AppendLine(new string('-', 102));
+            sb.AppendLine($"{"ID",-6} {"Name",-16} {"Arrival",-10} {"Svc Start",-10} {"Service",-15} {"Departure",-10} {"Wq",-15} {"W",-15} {"Server",-12} {"Status",-10}");
+            sb.AppendLine(new string('-', 128));
             foreach (var c in result.AllCustomers)
             {
                 sb.AppendLine($"{c.Id,-6} {c.Name,-16} " +
                     $"{Customer.FormatTime(c.ArrivalTime),-10} " +
                     $"{Customer.FormatTime(c.ServiceStartTime),-10} " +
-                    $"{Customer.FormatTime(c.ServiceTime),-10} " +
+                    $"{Customer.FormatDuration(c.ServiceTime),-15} " +
                     $"{Customer.FormatTime(c.DepartureTime),-10} " +
-                    $"{FormatMin(c.WaitingTime),-10} " +
-                    $"{FormatMin(c.TimeInSystem),-10} " +
-                    $"{"Cashier " + c.AssignedServer,-10} " +
+                    $"{Customer.FormatDuration(c.WaitingTime),-15} " +
+                    $"{Customer.FormatDuration(c.TimeInSystem),-15} " +
+                    $"{(c.AssignedServer > 0 ? "Cashier " + c.AssignedServer : "—"),-12} " +
                     $"{c.Status,-10}");
             }
             sb.AppendLine();

@@ -40,6 +40,11 @@ namespace ImtiazQueueSimulator.Models
             Name = $"Customer {id:D3}";
             ArrivalTime = arrivalTime;
             QueueEntryTime = arrivalTime;
+            ServiceStartTime = double.NaN;
+            ServiceTime = double.NaN;
+            DepartureTime = double.NaN;
+            WaitingTime = double.NaN;
+            TimeInSystem = double.NaN;
         }
 
         /// <summary>
