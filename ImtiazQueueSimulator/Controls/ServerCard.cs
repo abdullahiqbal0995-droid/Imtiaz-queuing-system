@@ -83,7 +83,7 @@ namespace ImtiazQueueSimulator.Controls
             int x        = rect.X + 14;
             int availW   = Math.Max(20, rect.Width - 28);
             int currentY = rect.Y + 12;
-            var sfClip   = new StringFormat { Trimming = StringTrimming.EllipsisCharacter };
+            var sfClip   = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
 
             // ── Row 0: Status Dot + Server Name (10.5pt Bold) ─────────────────
             g.FillEllipse(new SolidBrush(statusColor), x, currentY + 4, 10, 10);
@@ -93,7 +93,7 @@ namespace ImtiazQueueSimulator.Controls
                 var nameSize = g.MeasureString(_serverName, nf, Math.Max(10, availW - 16));
                 g.DrawString(_serverName, nf, nb,
                     new RectangleF(x + 16, currentY, Math.Max(10, availW - 16), nameSize.Height + 2), sfClip);
-                currentY += (int)Math.Ceiling(nameSize.Height) + 2;
+                currentY += (int)Math.Ceiling(nameSize.Height) + 3;
             }
 
             // ── Row 1: Status Badge (● BUSY / ● AVAILABLE) ────────────────────
@@ -104,10 +104,10 @@ namespace ImtiazQueueSimulator.Controls
                 var stSize = g.MeasureString(statusText, stf, availW);
                 g.DrawString(statusText, stf, stb,
                     new RectangleF(x, currentY, availW, stSize.Height + 2), sfClip);
-                currentY += (int)Math.Ceiling(stSize.Height) + 2;
+                currentY += (int)Math.Ceiling(stSize.Height) + 3;
             }
 
-            // ── Row 2: Customer Name (9pt) ────────────────────────────────────
+            // ── Row 2: Customer Name (8.5pt) ──────────────────────────────────
             string custDisplay = _isBusy && !string.IsNullOrEmpty(_customerName)
                 ? $"Customer: {_customerName}"
                 : "No customer currently";
@@ -126,7 +126,7 @@ namespace ImtiazQueueSimulator.Controls
             var barBgRect = new Rectangle(x, currentY, availW, barH);
             using (var bbb = new SolidBrush(BarBg)) FillRounded(g, bbb, barBgRect, 4);
 
-            int fillW = (int)(availW * Math.Min(_utilization, 1.0));
+            int fillW = (int)(availW * Math.Min(Math.Max(0, _utilization), 1.0));
             if (fillW > 4)
             {
                 Color barFill = _utilization > 0.85 ? DangerRed

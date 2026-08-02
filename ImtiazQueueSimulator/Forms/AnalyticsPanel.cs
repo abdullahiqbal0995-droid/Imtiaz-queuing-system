@@ -10,8 +10,7 @@ using ImtiazQueueSimulator.Models;
 namespace ImtiazQueueSimulator.Forms
 {
     /// <summary>
-    /// Executive Analytics Panel featuring responsive GDI+ custom-drawn charts
-    /// and the Enterprise Gantt Timeline Dashboard (EnterpriseGanttControl).
+    /// Executive Analytics Panel featuring responsive GDI+ custom-drawn charts.
     /// </summary>
     public class AnalyticsPanel : UserControl
     {
@@ -25,7 +24,6 @@ namespace ImtiazQueueSimulator.Forms
         private Panel _chartPanel3 = null!;
         private Panel _chartPanel4 = null!;
         private Panel _chartPanel5 = null!;
-        private EnterpriseGanttControl _ganttControl = null!;
 
         // ── Design tokens ──────────────────────────────────────────────────────
         private static readonly Color PageBg      = Color.FromArgb(244, 246, 250);
@@ -73,7 +71,7 @@ namespace ImtiazQueueSimulator.Forms
 
             _subTitleLabel = new Label
             {
-                Text      = "Visual analysis of simulation results — run a simulation first to populate real-time charts & Gantt timeline.",
+                Text      = "Visual analysis of simulation results — run a simulation first to populate real-time analytics charts.",
                 Font      = new Font("Segoe UI", 9.5f),
                 ForeColor = TextLight,
                 AutoSize  = true,
@@ -101,13 +99,6 @@ namespace ImtiazQueueSimulator.Forms
             _mainContainer.Controls.Add(_chartPanel3);
             _mainContainer.Controls.Add(_chartPanel4);
             _mainContainer.Controls.Add(_chartPanel5);
-
-            // ── 6. Enterprise Gantt Timeline Dashboard ────────────────────────
-            _ganttControl = new EnterpriseGanttControl
-            {
-                Size = new Size(1000, 580)
-            };
-            _mainContainer.Controls.Add(_ganttControl);
 
             Resize += (s, e) => PerformCustomLayout();
             PerformCustomLayout();
@@ -161,10 +152,15 @@ namespace ImtiazQueueSimulator.Forms
 
         private void PerformCustomLayout()
         {
-            if (_mainContainer == null || _chartPanel1 == null || _ganttControl == null) return;
+            if (_mainContainer == null || _chartPanel1 == null) return;
 
             int availW = Math.Max(400, ClientSize.Width - 40);
             _mainContainer.Width = availW;
+
+            if (_subTitleLabel != null)
+            {
+                _subTitleLabel.MaximumSize = new Size(availW, 0);
+            }
 
             bool isWide = availW >= 880;
             int gap = 20;
@@ -172,17 +168,13 @@ namespace ImtiazQueueSimulator.Forms
 
             int chartW = isWide ? (availW - gap) / 2 : availW;
 
-            int numServers = _result != null && _result.NumServers > 0 ? _result.NumServers : 1;
-            int ganttH = Math.Max(520, 280 + numServers * 94);
-
             _chartPanel1.Size = new Size(chartW, chartH);
             _chartPanel2.Size = new Size(chartW, chartH);
             _chartPanel3.Size = new Size(chartW, chartH);
             _chartPanel4.Size = new Size(chartW, chartH);
             _chartPanel5.Size = new Size(chartW, chartH);
-            _ganttControl.Size = new Size(availW, ganttH);
 
-            int startY = 74;
+            int startY = _subTitleLabel != null ? _subTitleLabel.Bottom + 16 : 74;
 
             if (isWide)
             {
@@ -199,11 +191,7 @@ namespace ImtiazQueueSimulator.Forms
                 int r3Y = r2Y + chartH + gap;
                 _chartPanel5.Location = new Point(0, r3Y);
 
-                // Row 4: Enterprise Gantt Chart Dashboard (Spans full width!)
-                int r4Y = r3Y + chartH + gap;
-                _ganttControl.Location = new Point(0, r4Y);
-
-                _mainContainer.Height = r4Y + ganttH + 30;
+                _mainContainer.Height = r3Y + chartH + 30;
             }
             else
             {
@@ -214,7 +202,6 @@ namespace ImtiazQueueSimulator.Forms
                 _chartPanel3.Location = new Point(0, currY); currY += chartH + gap;
                 _chartPanel4.Location = new Point(0, currY); currY += chartH + gap;
                 _chartPanel5.Location = new Point(0, currY); currY += chartH + gap;
-                _ganttControl.Location = new Point(0, currY); currY += ganttH + gap;
 
                 _mainContainer.Height = currY + 10;
             }
@@ -227,7 +214,6 @@ namespace ImtiazQueueSimulator.Forms
         public void LoadResults(SimulationResult result)
         {
             _result = result;
-            _ganttControl.LoadResults(result);
             PerformCustomLayout();
 
             _chartPanel1.Invalidate();

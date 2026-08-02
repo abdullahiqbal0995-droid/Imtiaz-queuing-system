@@ -384,19 +384,34 @@ namespace ImtiazQueueSimulator.Forms
             int numModels  = _modelCardsPanel.Controls.Count;
             if (numModels > 0)
             {
-                int targetBtnW = Math.Max(120, (totalW - 40 - (numModels - 1) * 10) / numModels);
+                int targetBtnW = Math.Max(110, (totalW - 40 - (numModels - 1) * 10) / numModels);
                 foreach (Control c in _modelCardsPanel.Controls)
                 {
                     if (c is Button b) b.Width = targetBtnW;
                 }
             }
 
+            int flowH = Math.Max(44, _modelCardsPanel.PreferredSize.Height);
+            _modelCardsPanel.Height = flowH;
+            if (_lblModelDesc != null)
+            {
+                _lblModelDesc.Location = new Point(20, _modelCardsPanel.Bottom + 6);
+                _modelCard.Height = _lblModelDesc.Bottom + 12;
+            }
+            else
+            {
+                _modelCard.Height = _modelCardsPanel.Bottom + 14;
+            }
+
+            int y = _modelCard.Bottom + 16;
+
             bool isWide = totalW >= 950;
             int leftW   = isWide ? (int)(totalW * 0.46) - 10 : totalW;
             int rightW  = isWide ? (int)(totalW * 0.54) - 10 : totalW;
             int rightX  = isWide ? leftW + 20 : 0;
 
-            _leftColumn.Width = leftW;
+            _leftColumn.Location = new Point(0, y);
+            _leftColumn.Width    = leftW;
 
             _paramCard.Width      = leftW;
             _controlToolbar.Width = leftW;
@@ -409,11 +424,11 @@ namespace ImtiazQueueSimulator.Forms
                 if (c is Panel p) p.Width = Math.Max(120, (_inputGrid.Width / 2) - 10);
             }
 
-            int neededLeftH   = _btnSave.Bottom + 20;
+            int neededLeftH    = _btnSave.Bottom + 20;
             _leftColumn.Height = neededLeftH;
 
-            int targetRightH  = Math.Max(580, neededLeftH);
-            _resultCard.Location = isWide ? new Point(rightX, _leftColumn.Top) : new Point(0, _leftColumn.Bottom + 20);
+            int targetRightH   = Math.Max(580, neededLeftH);
+            _resultCard.Location = isWide ? new Point(rightX, y) : new Point(0, _leftColumn.Bottom + 20);
             _resultCard.Width    = rightW;
             _resultCard.Height   = targetRightH;
             _rtbResults.Width    = rightW - 40;

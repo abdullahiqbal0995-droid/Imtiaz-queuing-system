@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using ImtiazQueueSimulator.Simulation;
 using ImtiazQueueSimulator.Models;
@@ -7,12 +8,13 @@ using ImtiazQueueSimulator.Models;
 namespace ImtiazQueueSimulator.Forms
 {
     /// <summary>
-    /// Model comparison panel — runs all queueing models with identical parameters side-by-side.
+    /// Enterprise Queueing Models Comparison Table.
     /// Features:
-    ///   - Professional table formatting with perfect column header & cell alignments
-    ///   - High contrast styling: Dark Navy header bar, soft zebra striping, soft blue row selection
-    ///   - Badges for ANALYTICAL vs SIMULATION evaluation methods
-    ///   - Number formatting (ρ = 55.6%, Lq/L = 4 decimals, Wq/W = 2 decimals in min)
+    ///   - Dark Navy header bar (#0F172A), 52px header height
+    ///   - Soft blue badges for Model column, circular badge for N column
+    ///   - Status badges for Evaluation Method (⚡ Simulation vs 📘 Analytical)
+    ///   - 48px row height, soft zebra striping (#F8FAFC), sky blue hover selection (#EEF5FF)
+    ///   - Strict tabular numeric formatting (ρ 55.60%, Lq/L 4 decimals, Wq/W 2 decimals)
     /// </summary>
     public class ComparisonPanel : UserControl
     {
@@ -34,55 +36,59 @@ namespace ImtiazQueueSimulator.Forms
         {
             var title = new Label
             {
-                Text      = "▤ MODEL COMPARISON",
-                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(30, 41, 59),
+                Text      = "Queueing Models Performance Comparison",
+                Font      = new Font("Segoe UI Bold", 14f),
+                ForeColor = Color.FromArgb(15, 23, 42),
                 AutoSize  = true,
-                Location  = new Point(15, 12)
+                Location  = new Point(20, 16)
             };
             Controls.Add(title);
 
             var desc = new Label
             {
-                Text      = "Compare all 6 queueing models side-by-side. Computes both analytical formulas and discrete-event simulation results.",
-                Font      = new Font("Segoe UI", 9f),
-                ForeColor = Color.FromArgb(71, 85, 105),
+                Text      = "Analytical vs Simulation Results  |  Total Models Compared: 6",
+                Font      = new Font("Segoe UI Semibold", 9.5f),
+                ForeColor = Color.FromArgb(100, 116, 139),
                 AutoSize  = true,
-                Location  = new Point(15, title.Bottom + 4)
+                Location  = new Point(20, title.Bottom + 4)
             };
+            desc.MaximumSize = new Size(Math.Max(300, Width - 40), 0);
             Controls.Add(desc);
 
             // Parameter input bar
-            int paramY = desc.Bottom + 10;
+            int paramY = desc.Bottom + 12;
             var paramPanel = new FlowLayoutPanel
             {
-                Location     = new Point(15, paramY),
-                Size         = new Size(950, 48),
-                WrapContents = false,
+                Location     = new Point(20, paramY),
+                Size         = new Size(Math.Max(300, Width - 40), 52),
+                WrapContents = true,
+                AutoSize     = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 BackColor    = Color.White,
-                Padding      = new Padding(12, 10, 12, 8),
+                Padding      = new Padding(16, 10, 16, 10),
                 Anchor       = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
             paramPanel.Paint += (s, e) =>
             {
+                var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+                var r = new Rectangle(0, 0, paramPanel.Width - 1, paramPanel.Height - 1);
+                using var path = RoundPath(r, 10);
+                using var bg = new SolidBrush(Color.White);
+                g.FillPath(bg, path);
                 using var pen = new Pen(Color.FromArgb(226, 232, 240), 1f);
-                e.Graphics.DrawRectangle(pen, 0, 0, paramPanel.Width - 1, paramPanel.Height - 1);
+                g.DrawPath(pen, path);
             };
             Controls.Add(paramPanel);
 
-            int statusY = paramY + 56;
-
             _lblStatus = new Label
             {
-                Text      = "Enter parameters and click RUN ALL MODELS to compare.",
+                Text      = "Analytical vs Simulation Results  |  Total Models Compared: 6",
                 Font      = new Font("Segoe UI Semibold", 9f),
-                ForeColor = Color.FromArgb(71, 85, 105),
+                ForeColor = Color.FromArgb(100, 116, 139),
                 AutoSize  = true,
-                Location  = new Point(15, statusY)
+                Location  = new Point(20, paramY + 60)
             };
             Controls.Add(_lblStatus);
-
-            int gridY = statusY + 24;
 
             paramPanel.Controls.Add(MakeLabel("λ:"));
             _txtLambda = MakeTextBox("20");
@@ -110,11 +116,11 @@ namespace ImtiazQueueSimulator.Forms
             var btnRun = new Button
             {
                 Text      = "▶  RUN ALL MODELS",
-                Size      = new Size(180, 30),
+                Size      = new Size(170, 32),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(220, 38, 38),
+                BackColor = Color.FromArgb(37, 99, 235), // Primary Blue
                 ForeColor = Color.White,
-                Font      = new Font("Segoe UI Semibold", 9f),
+                Font      = new Font("Segoe UI Bold", 9f),
                 Cursor    = Cursors.Hand,
                 Margin    = new Padding(12, 0, 0, 0)
             };
@@ -122,11 +128,11 @@ namespace ImtiazQueueSimulator.Forms
             btnRun.Click += BtnRun_Click;
             paramPanel.Controls.Add(btnRun);
 
-            // Results grid - High Contrast & Modern Row Selection
+            // Enterprise DataGridView Table
             _grid = new DataGridView
             {
-                Location = new Point(15, gridY),
-                Size = new Size(950, 420),
+                Location = new Point(20, _lblStatus.Bottom + 12),
+                Size = new Size(Math.Max(300, Width - 40), Math.Max(100, Height - _lblStatus.Bottom - 30)),
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.None,
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
@@ -135,30 +141,30 @@ namespace ImtiazQueueSimulator.Forms
                 AllowUserToAddRows = false,
                 ReadOnly = true,
                 Font = new Font("Segoe UI", 9.5f),
-                RowTemplate = { Height = 38 },
+                RowTemplate = { Height = 48 },
                 GridColor = Color.FromArgb(226, 232, 240),
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                ColumnHeadersHeight = 42,
+                ColumnHeadersHeight = 52,
                 ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
                 ColumnHeadersDefaultCellStyle =
                 {
                     BackColor = Color.FromArgb(15, 23, 42),       // Dark Navy Slate 900
                     ForeColor = Color.White,
                     Font = new Font("Segoe UI Bold", 9.5f),
-                    Padding = new Padding(8, 0, 8, 0)
+                    Padding = new Padding(16, 0, 16, 0)
                 },
                 DefaultCellStyle =
                 {
                     ForeColor = Color.FromArgb(30, 41, 59),
-                    SelectionBackColor = Color.FromArgb(239, 246, 255), // Soft Sky Blue Selection
+                    SelectionBackColor = Color.FromArgb(238, 245, 255), // Hover Sky Blue (#EEF5FF)
                     SelectionForeColor = Color.FromArgb(15, 23, 42),
-                    Padding = new Padding(8, 0, 8, 0)
+                    Padding = new Padding(16, 0, 16, 0)
                 },
                 AlternatingRowsDefaultCellStyle =
                 {
-                    BackColor = Color.FromArgb(248, 250, 252),
-                    SelectionBackColor = Color.FromArgb(239, 246, 255),
+                    BackColor = Color.FromArgb(248, 250, 252),    // Soft Zebra (#F8FAFC)
+                    SelectionBackColor = Color.FromArgb(238, 245, 255),
                     SelectionForeColor = Color.FromArgb(15, 23, 42)
                 },
                 EnableHeadersVisualStyles = false,
@@ -170,57 +176,168 @@ namespace ImtiazQueueSimulator.Forms
             {
                 new DataGridViewTextBoxColumn
                 {
-                    Name = "Model", HeaderText = "Model", Width = 90,
-                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleLeft } },
-                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleLeft, Font = new Font("Segoe UI Bold", 9.5f) }
-                },
-                new DataGridViewTextBoxColumn
-                {
-                    Name = "N", HeaderText = "N", Width = 50,
-                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleCenter } },
-                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
-                },
-                new DataGridViewTextBoxColumn
-                {
-                    Name = "Type", HeaderText = "Evaluation Method", Width = 160,
+                    Name = "Model", HeaderText = "Model", MinimumWidth = 150, Width = 150,
                     HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleLeft } },
                     DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleLeft }
                 },
                 new DataGridViewTextBoxColumn
                 {
-                    Name = "Rho", HeaderText = "ρ (Util)", Width = 90,
+                    Name = "N", HeaderText = "N", MinimumWidth = 70, Width = 70,
+                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleCenter } },
+                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "Type", HeaderText = "Evaluation Method", MinimumWidth = 200, Width = 200,
+                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleLeft } },
+                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleLeft }
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "Rho", HeaderText = "ρ (Util)", MinimumWidth = 90, Width = 100,
                     HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
                     DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
                 },
                 new DataGridViewTextBoxColumn
                 {
-                    Name = "Lq", HeaderText = "Lq (Queue)", Width = 110,
+                    Name = "Lq", HeaderText = "Lq (Queue)", MinimumWidth = 100, Width = 120,
                     HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
                     DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
                 },
                 new DataGridViewTextBoxColumn
                 {
-                    Name = "L", HeaderText = "L (System)", Width = 110,
+                    Name = "L", HeaderText = "L (System)", MinimumWidth = 100, Width = 120,
                     HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
                     DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
                 },
                 new DataGridViewTextBoxColumn
                 {
-                    Name = "Wq", HeaderText = "Wq (min)", Width = 120,
+                    Name = "Wq", HeaderText = "Wq (min)", MinimumWidth = 100, Width = 125,
                     HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
                     DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
                 },
                 new DataGridViewTextBoxColumn
                 {
-                    Name = "W", HeaderText = "W (min)", Width = 120,
+                    Name = "W", HeaderText = "W (min)", MinimumWidth = 100, Width = 125,
                     HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
                     DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
                 }
             });
 
             _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            _grid.CellPainting += Grid_CellPainting;
 
             Controls.Add(_grid);
+
+            Resize += (s, e) =>
+            {
+                desc.MaximumSize = new Size(Math.Max(300, Width - 40), 0);
+                paramPanel.Width = Math.Max(300, Width - 40);
+                _lblStatus.Location = new Point(20, paramPanel.Bottom + 10);
+                _grid.Location = new Point(20, _lblStatus.Bottom + 10);
+                _grid.Size = new Size(Math.Max(300, Width - 40), Math.Max(100, Height - _lblStatus.Bottom - 30));
+            };
+        }
+
+        private void Grid_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+            string colName = _grid.Columns[e.ColumnIndex].Name;
+
+            if (colName == "Model" || colName == "N" || colName == "Type")
+            {
+                e.PaintBackground(e.CellBounds, true);
+
+                if (e.Graphics == null) return;
+                string valStr = e.Value?.ToString() ?? "";
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                if (colName == "Model")
+                {
+                    // Soft Blue Badge for Model Column (150px col width)
+                    int badgeW = 90;
+                    int badgeH = 26;
+                    int bx = e.CellBounds.Left + 16;
+                    int by = e.CellBounds.Top + (e.CellBounds.Height - badgeH) / 2;
+                    var badgeR = new Rectangle(bx, by, badgeW, badgeH);
+
+                    using var path = RoundPath(badgeR, 6);
+                    using var bg = new SolidBrush(Color.FromArgb(239, 246, 255));
+                    using var pen = new Pen(Color.FromArgb(191, 219, 254), 1f);
+                    g.FillPath(bg, path);
+                    g.DrawPath(pen, path);
+
+                    using var font = new Font("Segoe UI Bold", 9f);
+                    using var brush = new SolidBrush(Color.FromArgb(29, 78, 216));
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString(valStr, font, brush, badgeR, sf);
+                }
+                else if (colName == "N")
+                {
+                    // Circular Badge for N Column (70px col width)
+                    int size = 26;
+                    int bx = e.CellBounds.Left + (e.CellBounds.Width - size) / 2;
+                    int by = e.CellBounds.Top + (e.CellBounds.Height - size) / 2;
+                    var circleR = new Rectangle(bx, by, size, size);
+
+                    using var bg = new SolidBrush(Color.FromArgb(241, 245, 249));
+                    using var pen = new Pen(Color.FromArgb(203, 213, 225), 1f);
+                    g.FillEllipse(bg, circleR);
+                    g.DrawEllipse(pen, circleR);
+
+                    using var font = new Font("Segoe UI Bold", 9f);
+                    using var brush = new SolidBrush(Color.FromArgb(30, 41, 59));
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString(valStr, font, brush, circleR, sf);
+                }
+                else if (colName == "Type")
+                {
+                    // Status Badge for Evaluation Method (200px col width)
+                    bool isSim = valStr.Contains("SIMULATION");
+                    Color bgClr = isSim ? Color.FromArgb(220, 252, 231) : Color.FromArgb(219, 234, 254);
+                    Color txtClr = isSim ? Color.FromArgb(21, 128, 61) : Color.FromArgb(29, 78, 216);
+                    Color bdrClr = isSim ? Color.FromArgb(134, 239, 172) : Color.FromArgb(147, 197, 253);
+
+                    string badgeText = isSim ? "⚡ Simulation" : "📘 Analytical";
+
+                    int badgeW = 125;
+                    int badgeH = 26;
+                    int bx = e.CellBounds.Left + 16;
+                    int by = e.CellBounds.Top + (e.CellBounds.Height - badgeH) / 2;
+                    var badgeR = new Rectangle(bx, by, badgeW, badgeH);
+
+                    using var path = RoundPath(badgeR, 13);
+                    using var bg = new SolidBrush(bgClr);
+                    using var pen = new Pen(bdrClr, 1f);
+                    g.FillPath(bg, path);
+                    g.DrawPath(pen, path);
+
+                    using var font = new Font("Segoe UI Semibold", 8.8f);
+                    using var brush = new SolidBrush(txtClr);
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString(badgeText, font, brush, badgeR, sf);
+                }
+
+                // Light separator line
+                using var penGrid = new Pen(Color.FromArgb(226, 232, 240), 1f);
+                g.DrawLine(penGrid, e.CellBounds.Left, e.CellBounds.Bottom - 1, e.CellBounds.Right, e.CellBounds.Bottom - 1);
+
+                e.Handled = true;
+            }
+        }
+
+        private static GraphicsPath RoundPath(Rectangle r, int radius)
+        {
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
         }
 
         private void BtnRun_Click(object? sender, EventArgs e)
@@ -258,15 +375,13 @@ namespace ImtiazQueueSimulator.Forms
                 {
                     int idx = _grid.Rows.Add(
                         model, servers,
-                        model == "G/G/1" ? "🏷 ANALYTICAL (Approx)" : "🏷 ANALYTICAL",
+                        model == "G/G/1" ? "ANALYTICAL (Approx)" : "ANALYTICAL",
                         FmtPct(analytical.AnalyticalRho),
                         FmtVal(analytical.AnalyticalLq),
                         FmtVal(analytical.AnalyticalL),
                         FmtMin(analytical.AnalyticalWq),
                         FmtMin(analytical.AnalyticalW)
                     );
-                    _grid.Rows[idx].Cells[2].Style.ForeColor = Color.FromArgb(29, 78, 216);
-                    _grid.Rows[idx].Cells[2].Style.Font = new Font("Segoe UI Semibold", 8.5f);
                 }
 
                 // Simulation
@@ -279,15 +394,13 @@ namespace ImtiazQueueSimulator.Forms
                 };
                 var simResult = engine.RunAll();
                 int simIdx = _grid.Rows.Add(
-                    model, servers, "⚡ SIMULATION",
+                    model, servers, "SIMULATION",
                     FmtPct(simResult.SimRho),
                     FmtVal(simResult.SimLq),
                     FmtVal(simResult.SimL),
                     FmtMin(simResult.SimWq),
                     FmtMin(simResult.SimW)
                 );
-                _grid.Rows[simIdx].Cells[2].Style.ForeColor = Color.FromArgb(4, 120, 87);
-                _grid.Rows[simIdx].Cells[2].Style.Font = new Font("Segoe UI Semibold", 8.5f);
 
                 // Alternate background color per model pair for high-contrast zebra layout
                 int lastIdx = _grid.Rows.Count - 1;
@@ -298,13 +411,13 @@ namespace ImtiazQueueSimulator.Forms
                 }
             }
 
-            _lblStatus.Text = $"Comparison complete — 6 models evaluation (analytical vs simulation).";
+            _lblStatus.Text = "Analytical vs Simulation Results  |  Total Models Compared: 6";
         }
 
         private static string FmtPct(double v)
         {
             if (double.IsNaN(v) || double.IsInfinity(v)) return "—";
-            return $"{v * 100:F1}%";
+            return $"{v * 100:F2}%";
         }
 
         private static string FmtVal(double v)

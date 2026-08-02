@@ -233,14 +233,29 @@ namespace ImtiazQueueSimulator.Forms
                     SelectionBackColor = Color.FromArgb(239, 246, 255),
                     SelectionForeColor = Color.FromArgb(30, 41, 59)
                 },
+                ColumnHeadersHeight = 40,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
                 ColumnHeadersDefaultCellStyle =
                 {
-                    BackColor = Color.FromArgb(248, 250, 252),
-                    ForeColor = Color.FromArgb(71, 85, 105),
-                    Font = new Font("Segoe UI Semibold", 9f),
-                    Padding = new Padding(4)
+                    BackColor = Color.FromArgb(15, 23, 42),      // Dark Navy Slate 900
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI Bold", 9.5f),
+                    Padding = new Padding(6, 0, 6, 0)
                 },
                 EnableHeadersVisualStyles = false
+            };
+
+            Resize += (s, e) =>
+            {
+                searchPanel.Width = Math.Max(300, Width - 30);
+                toolbarFlow.Width = Math.Max(250, searchPanel.Width - 150);
+                int neededH = Math.Max(56, toolbarFlow.PreferredSize.Height + 12);
+                searchPanel.Height = neededH;
+                _lblCount.Location = new Point(searchPanel.Width - _lblCount.PreferredWidth - 16, 18);
+                _emptyLabel.Location = new Point(15, searchPanel.Bottom + 10);
+                int newGridY = searchPanel.Bottom + 36;
+                _grid.Location = new Point(15, newGridY);
+                _grid.Size = new Size(Math.Max(300, Width - 30), Math.Max(100, Height - newGridY - 15));
             };
 
             _grid.Columns.AddRange(new DataGridViewColumn[]

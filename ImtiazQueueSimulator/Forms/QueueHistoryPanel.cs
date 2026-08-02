@@ -122,16 +122,22 @@ namespace ImtiazQueueSimulator.Forms
                 Font = new Font("Segoe UI", 9f),
                 RowTemplate = { Height = 34 },
                 GridColor = Color.FromArgb(241, 245, 249),
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                ColumnHeadersHeight = 40,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
                 ColumnHeadersDefaultCellStyle =
                 {
-                    BackColor = Color.FromArgb(248, 250, 252),
-                    ForeColor = Color.FromArgb(71, 85, 105),
-                    Font = new Font("Segoe UI Semibold", 9f),
-                    Padding = new Padding(6, 4, 6, 4)
+                    BackColor = Color.FromArgb(15, 23, 42),      // Dark Navy Slate 900
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI Bold", 9.5f),
+                    Padding = new Padding(6, 0, 6, 0)
                 },
                 DefaultCellStyle =
                 {
-                    Padding = new Padding(4, 0, 4, 0)
+                    SelectionBackColor = Color.FromArgb(239, 246, 255),
+                    SelectionForeColor = Color.FromArgb(15, 23, 42),
+                    Padding = new Padding(6, 0, 6, 0)
                 },
                 EnableHeadersVisualStyles = false,
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right

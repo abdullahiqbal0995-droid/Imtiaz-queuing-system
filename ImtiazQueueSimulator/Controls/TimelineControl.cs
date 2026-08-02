@@ -119,10 +119,10 @@ namespace ImtiazQueueSimulator.Controls
             float textW = Math.Max(50, Width - textX - 24);
             var sf = new StringFormat { Trimming = StringTrimming.EllipsisCharacter };
 
-            // Title & Timestamp line (Height 24px, shifted Y+2 to align vertically with node circle and avoid top text clipping)
+            float labelWidth = Math.Max(50, Width - textX - 140);
             using (var f = new Font("Segoe UI", 9.5f, FontStyle.Bold))
             using (var b = new SolidBrush(color))
-                g.DrawString(label, f, b, new RectangleF(textX, y + 2, textW - 90, 24), sf);
+                g.DrawString(label, f, b, new RectangleF(textX, y + 2, labelWidth, 24), sf);
 
             using (var f = new Font("Segoe UI Semibold", 9.5f))
             using (var b = new SolidBrush(Color.FromArgb(30, 41, 59)))

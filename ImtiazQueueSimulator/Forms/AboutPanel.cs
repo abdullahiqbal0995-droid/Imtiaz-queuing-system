@@ -142,7 +142,7 @@ namespace ImtiazQueueSimulator.Forms
             // ── Kendall's notation card ────────────────────────────────────────
             var notationCard = MakeCard(20, y, 720, 155);
             AddCardTitle(notationCard, "📖  KENDALL'S NOTATION", 16, 14);
-            notationCard.Controls.Add(new Label
+            var notationLbl = new Label
             {
                 Text =
                     "A / B / N   where:\n" +
@@ -155,7 +155,25 @@ namespace ImtiazQueueSimulator.Forms
                 ForeColor = TextMid,
                 Location  = new Point(16, 44),
                 Size      = new Size(690, 105)
-            });
+            };
+            notationCard.Controls.Add(notationLbl);
+
+            Panel[] allCards = { appCard, metricsCard, modelsCard, formulaCard, notationCard };
+
+            Resize += (s, e) =>
+            {
+                int cardW = Math.Max(320, Width - 40);
+                foreach (var c in allCards)
+                {
+                    c.Width = cardW;
+                    foreach (Control child in c.Controls)
+                    {
+                        if (child is Panel p && p != codeBox) p.Width = cardW - 32;
+                    }
+                }
+                codeBox.Width = cardW - 24;
+                notationLbl.Width = cardW - 32;
+            };
         }
 
         // ── Helpers ────────────────────────────────────────────────────────────

@@ -199,7 +199,20 @@ namespace ImtiazQueueSimulator.Forms
                 viewForm.Controls.Add(txt);
                 viewForm.ShowDialog();
             };
-            card.Controls.Add(btnView);
+            card.Resize += (s, e) =>
+            {
+                int w = card.Width;
+                int btnZoneW = 220;
+                int textW = Math.Max(150, w - btnZoneW - 24);
+                modelLabel.MaximumSize = new Size(textW, 0);
+                dateLabel.Size = new Size(textW, 20);
+                metricsLabel.Size = new Size(textW, 22);
+                btnSave.Location = new Point(w - 110, 40);
+                btnView.Location = new Point(w - 205, 40);
+            };
+
+            // Trigger initial resize
+            card.Size = new Size(cardW, 115);
 
             return card;
         }

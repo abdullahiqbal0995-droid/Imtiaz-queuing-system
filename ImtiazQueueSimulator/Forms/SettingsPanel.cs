@@ -50,7 +50,9 @@ namespace ImtiazQueueSimulator.Forms
             var presetFlow = new FlowLayoutPanel
             {
                 Location     = new Point(20, y),
-                Size         = new Size(900, 200),
+                Size         = new Size(Math.Max(300, Width - 40), 200),
+                AutoSize     = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 WrapContents = true,
                 BackColor    = Color.Transparent,
                 Padding      = new Padding(0)
@@ -76,11 +78,12 @@ namespace ImtiazQueueSimulator.Forms
             y += 215;
 
             // ── Info card ──────────────────────────────────────────────────────
-            Controls.Add(MakeLabel("HOW PRESETS WORK",
-                new Font("Segoe UI", 8.5f, FontStyle.Bold), TextLight, 20, y, true));
+            var lblHow = MakeLabel("HOW PRESETS WORK",
+                new Font("Segoe UI", 8.5f, FontStyle.Bold), TextLight, 20, y, true);
+            Controls.Add(lblHow);
             y += 24;
 
-            var noteCard = CreateInfoCard(20, y, 700, 165);
+            var noteCard = CreateInfoCard(20, y, Math.Max(300, Width - 40), 165);
             var noteText = new Label
             {
                 Text =
@@ -92,9 +95,19 @@ namespace ImtiazQueueSimulator.Forms
                 Font      = new Font("Segoe UI", 9.5f),
                 ForeColor = TextMid,
                 Location  = new Point(18, 18),
-                Size      = new Size(660, 135)
+                Size      = new Size(Math.Max(260, noteCard.Width - 36), 135)
             };
             noteCard.Controls.Add(noteText);
+
+            Resize += (s, e) =>
+            {
+                int cardW = Math.Max(300, Width - 40);
+                presetFlow.Width = cardW;
+                lblHow.Top = presetFlow.Bottom + 16;
+                noteCard.Top = lblHow.Bottom + 8;
+                noteCard.Width = cardW;
+                noteText.Width = Math.Max(260, noteCard.Width - 36);
+            };
         }
 
         // ── Preset card ────────────────────────────────────────────────────────
