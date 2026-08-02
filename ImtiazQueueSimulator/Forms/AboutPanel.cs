@@ -3,29 +3,32 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
-using ImtiazQueueSimulator.Reports;
 
 namespace ImtiazQueueSimulator.Forms
 {
     /// <summary>
-    /// Professional educational and reference dashboard for Queueing Theory.
-    /// Redesigned to support a robust vertical flow, zero clipping/overlapping,
-    /// auto-expanding cards, and responsive formatting.
+    /// Professional, modern academic educational dashboard for Queueing Theory.
+    /// Rebuilt with absolute zero-clipping vertical grids, responsive dual-column grids,
+    /// horizontal-scroll comparison table, and unified branding colors.
     /// </summary>
     public class AboutPanel : UserControl
     {
         private FlowLayoutPanel _mainFlow = null!;
+        private FlowLayoutPanel _modelsFlow = null!;
+        
         private List<(Panel Card, FlowLayoutPanel ContentFlow)> _cards = new();
+        private List<(Panel Card, FlowLayoutPanel ContentFlow)> _modelCards = new();
 
         // ── Design tokens ──────────────────────────────────────────────────────
-        private static readonly Color PageBg    = Color.FromArgb(244, 246, 250);
-        private static readonly Color CardBg    = Color.White;
-        private static readonly Color CodeBg    = Color.FromArgb(248, 250, 252);
-        private static readonly Color TextDark  = Color.FromArgb(30, 41, 59);
-        private static readonly Color TextMid   = Color.FromArgb(71, 85, 105);
-        private static readonly Color TextLight = Color.FromArgb(100, 116, 139);
-        private static readonly Color Border    = Color.FromArgb(226, 232, 240);
-        private static readonly Color AccentBlue = Color.FromArgb(29, 78, 216);
+        private static readonly Color PageBg      = Color.FromArgb(244, 246, 250);
+        private static readonly Color CardBg      = Color.White;
+        private static readonly Color CodeBg      = Color.FromArgb(248, 250, 252);
+        private static readonly Color TextDark    = Color.FromArgb(15, 23, 42);   // Navy Dark
+        private static readonly Color TextMid     = Color.FromArgb(71, 85, 105);   // Slate Mid
+        private static readonly Color TextLight   = Color.FromArgb(100, 116, 139); // Muted Slate
+        private static readonly Color Border      = Color.FromArgb(226, 232, 240); // Light Border
+        private static readonly Color AccentBlue  = Color.FromArgb(29, 78, 216);   // Deep Blue
+        private static readonly Color AccentGreen = Color.FromArgb(22, 163, 74);   // Success Green
 
         public AboutPanel()
         {
@@ -38,6 +41,7 @@ namespace ImtiazQueueSimulator.Forms
         {
             Controls.Clear();
             _cards.Clear();
+            _modelCards.Clear();
 
             _mainFlow = new FlowLayoutPanel
             {
@@ -58,27 +62,27 @@ namespace ImtiazQueueSimulator.Forms
                 WrapContents  = false,
                 AutoSize      = true,
                 BackColor     = Color.Transparent,
-                Margin        = new Padding(0, 0, 0, 16)
+                Margin        = new Padding(0, 0, 0, 24)
             };
             _mainFlow.Controls.Add(headerFlow);
 
             var titleLbl = new Label
             {
-                Text      = "ℹ  ABOUT & EDUCATIONAL CONTENT",
-                Font      = new Font("Segoe UI", 14f, FontStyle.Bold),
+                Text      = "ABOUT EDUCATIONAL CONTENT",
+                Font      = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = TextDark,
                 AutoSize  = true,
-                Margin    = new Padding(0, 0, 0, 4)
+                Margin    = new Padding(0, 0, 0, 6)
             };
             headerFlow.Controls.Add(titleLbl);
 
             var subTitleLbl = new Label
             {
-                Text      = "Queueing Theory, Simulation Models, Performance Metrics & How to Use the Simulator",
-                Font      = new Font("Segoe UI", 9.5f),
+                Text      = "Reference material for queueing theory concepts used in this simulation.",
+                Font      = new Font("Segoe UI", 10f),
                 ForeColor = TextLight,
                 AutoSize  = true,
-                Margin    = new Padding(0, 0, 0, 12)
+                Margin    = new Padding(0, 0, 0, 14)
             };
             headerFlow.Controls.Add(subTitleLbl);
 
@@ -92,122 +96,139 @@ namespace ImtiazQueueSimulator.Forms
             };
             headerFlow.Controls.Add(introLbl);
 
-            // ── 2. How to Use ──
-            var usageCard = AddCard("📖  HOW TO USE THE SIMULATOR");
-            usageCard.AddText("Follow these numbered steps to run the simulation and analyze its results:");
-            usageCard.AddBullet("1. Open the 'Simulation' panel from the sidebar.");
-            usageCard.AddBullet("2. Select the Queueing Model you want to simulate (e.g. M/M/1, M/M/N).");
-            usageCard.AddBullet("3. Select the number of customers to generate.");
-            usageCard.AddBullet("4. Set the arrival rate (λ) in customers per hour.");
-            usageCard.AddBullet("5. Set the cashier service rate (μ) in customers per hour.");
-            usageCard.AddBullet("6. Set the number of servers/cashiers (N) active in the supermarket.");
-            usageCard.AddBullet("7. Configure the arrival and service distributions (e.g., Exponential, Uniform, Normal).");
-            usageCard.AddBullet("8. Click the 'Start Simulation' button.");
-            usageCard.AddBullet("9. Watch customers arrive and enter checkout queues in real time.");
-            usageCard.AddBullet("10. Observe customer state flows from Queue → Server → Departure.");
-            usageCard.AddBullet("11. Click any row in the 'Customer Records' panel to view that customer's exact journey.");
-            usageCard.AddBullet("12. Switch to 'Queue History', 'Analytics', 'Model Comparison', or 'Reports' to view advanced outputs.");
-            usageCard.AddText("Note: The simulator dynamically calculates all metrics in real time from simulated customer events. You do not need to manually calculate the queue.");
+            // ── 2. Key Metrics Card ──
+            var metricsCard = AddCard("📐  KEY METRICS EXPLAINED");
+            metricsCard.AddText("Understand the core mathematical and operational performance metrics calculated by the analyzer:");
+            metricsCard.AddMetricRow("Lq", "Average Queue Length", "The average number of customers waiting in the checkout queue (excludes customers currently in service).");
+            metricsCard.AddMetricRow("L", "Average System Size", "The average number of customers in the checkout area (waiting in line + currently being served). L = customers waiting + customers currently being served.");
+            metricsCard.AddMetricRow("Wq", "Average Waiting Time", "The average time spent waiting in queue before cashier service begins.");
+            metricsCard.AddMetricRow("W", "Average System Time", "The average total time spent in the system (W = Wq + service time).");
+            metricsCard.AddMetricRow("ρ", "Server Utilization", "The average fraction of time cashiers are busy serving customers. For single-server systems: ρ = λ / μ. For multi-server systems: ρ = λ / (Nμ). Must be < 1 for steady-state stability.");
+            metricsCard.AddSubHeading("Little's Law");
+            metricsCard.AddText("A foundational law in Operations Research that relates the system size, arrival rate, and times:");
+            metricsCard.AddFormula("L = λW\nLq = λWq");
+            metricsCard.AddText("\"System\" means customers currently waiting in the queue PLUS customers currently receiving service.");
 
-            // ── 3. Key Terminology ──
-            var termsCard = AddCard("📐  KEY QUEUEING TERMS");
-            termsCard.AddSubHeading("λ (Lambda) — Arrival Rate");
-            termsCard.AddText("The average number of customers arriving at the checkout area per unit of time.");
-            termsCard.AddSubHeading("μ (Mu) — Service Rate");
-            termsCard.AddText("The average number of customers a single server/cashier can serve per unit of time.");
-            termsCard.AddSubHeading("N — Parallel Servers");
-            termsCard.AddText("The number of cashiers operating checkout lanes in parallel.");
-            termsCard.AddSubHeading("ρ (Rho) — Server Utilization");
-            termsCard.AddText("Traffic intensity or cashier workload. Represents the fraction of time servers are busy.");
-            termsCard.AddFormula("For M/M/1:  ρ = λ / μ\nFor M/M/N: ρ = λ / (Nμ)");
-            termsCard.AddSubHeading("Lq — Average Queue Length");
-            termsCard.AddText("The average number of customers waiting in the checkout queue (excluding those being served).");
-            termsCard.AddSubHeading("L — Average System Size");
-            termsCard.AddText("The average number of customers in the entire checkout system (waiting in line + currently being served).");
-            termsCard.AddSubHeading("Wq — Average Waiting Time");
-            termsCard.AddText("The average time a customer spends waiting in queue before a cashier starts their checkout service.");
-            termsCard.AddSubHeading("W — Average System Time");
-            termsCard.AddText("The average total time a customer spends in the checkout area (waiting time + service duration).");
-            termsCard.AddSubHeading("Little's Law");
-            termsCard.AddText("A fundamental queueing relation that holds for almost all queueing systems in steady state:");
-            termsCard.AddFormula("L  = λ × W\nLq = λ × Wq");
-            termsCard.AddText("\"System\" means customers currently waiting in the queue PLUS customers currently receiving service.");
+            // ── 3. Queueing Model Explanations (Grid Header) ──
+            var modelsHeaderLbl = new Label
+            {
+                Text      = "📋  QUEUEING MODELS",
+                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = TextDark,
+                AutoSize  = true,
+                Margin    = new Padding(0, 16, 0, 8)
+            };
+            _mainFlow.Controls.Add(modelsHeaderLbl);
 
-            // ── 4. Queueing Models (6 cards) ──
-            var mm1Card = AddCard("1️⃣  M/M/1 — Markovian Arrivals, Markovian Service, 1 Server");
-            mm1Card.AddText("Poisson arrival process, exponential service times, and a single cashier checkout counter.");
-            mm1Card.AddFormula(
-                "ρ  = λ / μ\n" +
-                "P0 = 1 - ρ\n" +
-                "Lq = ρ² / (1 - ρ) = λ² / [μ(μ - λ)]\n" +
-                "L  = ρ / (1 - ρ) = λ / (μ - λ)\n" +
-                "Wq = Lq / λ      = λ / [μ(μ - λ)]\n" +
-                "W  = L / λ       = 1 / (μ - λ)"
+            // Create models grid FlowLayoutPanel
+            _modelsFlow = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = true,
+                AutoSize      = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
+                BackColor     = Color.Transparent,
+                Margin        = new Padding(0, 0, 0, 24)
+            };
+            _mainFlow.Controls.Add(_modelsFlow);
+
+            // Model 1 Card
+            var m1 = AddModelCard("M/M/1 Model", "Single Server (Markovian)");
+            m1.AddText("Poisson arrivals, Exponential service, and a single cashier checkout counter.");
+            m1.AddFormula(
+                "ρ = λ / μ\n" +
+                "P₀ = 1 − ρ\n" +
+                "Lq = ρ² / (1 − ρ)  or  Lq = λ² / [μ(μ − λ)]\n" +
+                "L = ρ / (1 − ρ)  or  L = λ / (μ − λ)\n" +
+                "Wq = Lq / λ  or  Wq = λ / [μ(μ − λ)]\n" +
+                "W = L / λ  or  W = 1 / (μ − λ)"
             );
-            mm1Card.AddText("Stability Condition: λ < μ (or ρ < 1). If ρ >= 1, the queue grows infinitely.");
+            m1.AddSubHeading("Stability Condition:");
+            m1.AddText("λ < μ (or ρ < 1)");
 
-            var mmnCard = AddCard("2️⃣  M/M/N — Markovian Arrivals, Markovian Service, N Servers");
-            mmnCard.AddText("Poisson arrival process, exponential service times, and N parallel cashier counters.");
-            mmnCard.AddFormula(
+            // Model 2 Card
+            var m2 = AddModelCard("M/M/N Model", "N Parallel Servers (Markovian)");
+            m2.AddText("Poisson arrivals, Exponential service, and N parallel cashier checkout counters.");
+            m2.AddFormula(
                 "a = λ / μ\n" +
                 "ρ = λ / (Nμ)\n" +
-                "P0 = [ Σ_{k=0}^{N-1} (a^k / k!) + (a^N / N!) * 1/(1-ρ) ]⁻¹\n" +
-                "P(wait) = (a^N / N!) * P0 / (1-ρ)    (Erlang-C Formula)\n" +
-                "Lq = P(wait) * ρ / (1-ρ)\n" +
+                "P₀ = [ Σ_{k=0}^{N-1} (a^k / k!) + (a^N / N!) × 1/(1−ρ) ]⁻¹\n" +
+                "P(wait) = (a^N / N!) × P₀ / (1−ρ)    (Erlang-C Formula)\n" +
+                "Lq = P(wait) × ρ / (1−ρ)\n" +
                 "Wq = Lq / λ\n" +
-                "W  = Wq + 1/μ\n" +
-                "L  = λ * W"
+                "W = Wq + 1/μ\n" +
+                "L = λW"
             );
-            mmnCard.AddText("Stability Condition: ρ < 1 (or λ < Nμ).");
+            m2.AddSubHeading("Stability Condition:");
+            m2.AddText("ρ < 1 (or λ < Nμ)");
 
-            var mg1Card = AddCard("3️⃣  M/G/1 — Markovian Arrivals, General Service, 1 Server");
-            mg1Card.AddText("Poisson arrival process, general service-time distribution (e.g. constant, normal), and one cashier. Uses the Pollaczek-Khinchine (P-K) formula.");
-            mg1Card.AddFormula(
-                "ρ  = λE[S]\n" +
-                "Lq = λ²E[S²] / [2(1-ρ)]\n" +
+            // Model 3 Card
+            var m3 = AddModelCard("M/G/1 Model", "Single Server, General Service");
+            m3.AddText("Poisson arrivals, General service distribution (e.g. constant/uniform scan times), and one cashier. Calculates queue size using the Pollaczek-Khinchine formula.");
+            m3.AddFormula(
+                "ρ = λE[S]\n" +
+                "Lq = λ²E[S²] / [2(1−ρ)]\n" +
                 "Wq = Lq / λ\n" +
-                "W  = Wq + E[S]\n" +
-                "L  = λ * W"
+                "W = Wq + E[S]\n" +
+                "L = λW"
             );
-            mg1Card.AddText("Where E[S] = mean service time, and E[S²] = second moment of service time.\nThis model is useful when service time is NOT necessarily exponential (e.g. uniform or constant scan times).");
+            m3.AddText("Where E[S] = mean service time, and E[S²] = second moment of service time.\nUseful when service times are constant or follow arbitrary non-exponential distributions.");
 
-            var mgnCard = AddCard("4️⃣  M/G/N — Markovian Arrivals, General Service, N Servers");
-            mgnCard.AddText("Poisson arrival process, general service-time distribution, and N parallel cashiers.");
-            mgnCard.AddText("There is no single simple closed-form formula for the general M/G/N model.");
-            mgnCard.AddText("Therefore, the simulator estimates Lq, L, Wq, W, and ρ using discrete-event simulation.");
-            mgnCard.AddText("Simulation is especially useful for general multi-server systems where analytical formulas become difficult or mathematically intractable.");
+            // Model 4 Card
+            var m4 = AddModelCard("M/G/N Model", "N Servers, General Service");
+            m4.AddText("Poisson arrivals, General service distribution, and N parallel cashier counters.");
+            m4.AddText("There is no single simple closed-form analytical formula for the general M/G/N model.");
+            m4.AddNote("The simulator estimates Lq, L, Wq, W, and ρ using discrete-event simulation. Simulation is especially useful for general multi-server systems where analytical formulas become difficult.");
 
-            var gg1Card = AddCard("5️⃣  G/G/1 — General Arrivals, General Service, 1 Server");
-            gg1Card.AddText("General inter-arrival distribution, general service-time distribution, and one cashier. Uses Kingman's heavy-traffic approximation.");
-            gg1Card.AddFormula(
-                "Wq ≈ [ρ / (1-ρ)] * [(Ca² + Cs²)/2] * E[S]\n" +
-                "Lq ≈ λ * Wq\n" +
-                "W  = Wq + E[S]\n" +
-                "L  = λ * W"
+            // Model 5 Card
+            var m5 = AddModelCard("G/G/1 Model", "Single Server, General Arrivals & Service");
+            m5.AddText("General inter-arrival distribution, General service-time distribution, and one cashier. Uses Kingman's heavy-traffic approximation.");
+            m5.AddFormula(
+                "Wq ≈ [ρ / (1−ρ)] × [(Ca² + Cs²)/2] × E[S]\n" +
+                "Lq ≈ λWq\n" +
+                "W = Wq + E[S]\n" +
+                "L = λW"
             );
-            gg1Card.AddText("Where Ca = coefficient of variation of inter-arrival times, Cs = coefficient of variation of service times, and ρ = λE[S].\nNote: This is an approximation rather than an exact closed-form result.");
+            m5.AddSubHeading("Definitions:");
+            m5.AddText("• Ca = coefficient of variation of inter-arrival times\n• Cs = coefficient of variation of service times\n• ρ = λE[S]\n• E[S] = mean service time");
+            m5.AddText("Note: This is an approximation rather than an exact closed-form result.");
 
-            var ggnCard = AddCard("6️⃣  G/G/N — General Arrivals, General Service, N Servers");
-            ggnCard.AddText("General arrival process, general service-time distribution, and N parallel cashier counters.");
-            ggnCard.AddText("There is no simple universal closed-form formula. The simulator uses discrete-event simulation to estimate Lq, L, Wq, W, and ρ.");
-            ggnCard.AddText("This is the most general model among the six models supported by this project.");
+            // Model 6 Card
+            var m6 = AddModelCard("G/G/N Model", "N Servers, General Arrivals & Service");
+            m6.AddText("General arrival process, General service-time distribution, and N parallel cashiers.");
+            m6.AddText("There is no simple universal closed-form formula.");
+            m6.AddNote("The simulator uses discrete-event simulation to estimate Lq, L, Wq, W, and ρ. This is the most general model among the six models supported by this project.");
 
-            // ── 5. Simulation Formulas ──
-            var simFormulasCard = AddCard("📝  SIMULATION FORMULAS");
-            simFormulasCard.AddSubHeading("ARRIVAL GENERATION");
-            simFormulasCard.AddText("For exponential/Poisson arrivals, the inter-arrival time (IA) is generated using inverse transform sampling:");
-            simFormulasCard.AddFormula("IA = -ln(U) / λ");
+            // ── 4. Model Comparison Table ──
+            var tableCard = AddCard("▤  MODEL COMPARISON TABLE");
+            tableCard.AddText("Overview of arrival/service processes and analytical availability for the 6 models:");
+            tableCard.AddControl(CreateTableScrollContainer(CreateModelTable()));
+
+            // ── 5. Simulation Variables & Formulas ──
+            var simFormulasCard = AddCard("📝  SIMULATION VARIABLES & FORMULAS");
+            simFormulasCard.AddText("The simulator models individual customer journeys sequentially. The main timing parameters are generated using inverse transform sampling, and metrics are derived dynamically:");
+            simFormulasCard.AddSubHeading("Exponential Inter-Arrival Generation");
+            simFormulasCard.AddFormula("IA = −ln(U) / λ");
             simFormulasCard.AddText("where U is a uniformly distributed random number between 0 and 1.\nCustomer arrival time is calculated as:");
-            simFormulasCard.AddFormula("ArrivalTime(i) = ArrivalTime(i-1) + IA(i)");
+            simFormulasCard.AddFormula("ArrivalTime(i) = ArrivalTime(i−1) + IA(i)");
             simFormulasCard.AddText("A smaller inter-arrival time means customers arrive more frequently.");
-            simFormulasCard.AddSubHeading("SERVICE TIME GENERATION");
-            simFormulasCard.AddText("For exponential service, service duration is generated as:");
-            simFormulasCard.AddFormula("ServiceTime = -ln(U) / μ");
-            simFormulasCard.AddText("where U is a uniform random number in (0,1).\nFor general service distributions, service time is generated according to the selected distribution (e.g. Uniform, Normal) using its corresponding generation mechanism.");
+            simFormulasCard.AddSubHeading("Exponential Service Duration Generation");
+            simFormulasCard.AddFormula("ServiceTime = −ln(U) / μ");
+            simFormulasCard.AddText("where U is a uniform random number in (0,1). For general distributions (e.g. Uniform, Normal), service time is generated according to standard statistical transform bounds.");
+            simFormulasCard.AddSubHeading("Timing Formulas");
+            simFormulasCard.AddFormula(
+                "Wq = Service Start Time − Arrival Time\n" +
+                "Service = Departure Time − Service Start Time\n" +
+                "W = Departure Time − Arrival Time = Wq + Service"
+            );
+            simFormulasCard.AddSubHeading("Supermarket System State Calculations");
+            simFormulasCard.AddFormula(
+                "System Size = Queue Customers + Customers Currently Being Served"
+            );
 
-            // ── 6. Individual Customer Metrics ──
+            // ── 6. How Customer Metrics are Calculated ──
             var customerMetricsCard = AddCard("👥  HOW CUSTOMER METRICS ARE CALCULATED");
-            customerMetricsCard.AddText("Every customer event has its own timing details calculated using rounded-second precision:");
+            customerMetricsCard.AddText("Every customer record details their timestamps (formatted as HH:MM:SS) and durations:");
             customerMetricsCard.AddBullet("Arrival Time = time customer enters the supermarket checkout system");
             customerMetricsCard.AddBullet("Service Start Time = time customer actually begins checkout service with cashier");
             customerMetricsCard.AddBullet("Departure Time = time customer finishes checkout service and leaves");
@@ -252,7 +273,7 @@ namespace ImtiazQueueSimulator.Forms
 
             // ── 10. Real-world Imtiaz Checkout Example ──
             var realWorldCard = AddCard("🛒  REAL-WORLD IMTIAZ CHECKOUT EXAMPLE");
-            realWorldCard.AddText("Here is how supermarket checkout maps to queueing elements:");
+            realWorldCard.AddText("Checkout operations are mapped to queueing concepts as follows:");
             realWorldCard.AddBullet("Customer = shoppers queueing for checkout");
             realWorldCard.AddBullet("Checkout line = queue");
             realWorldCard.AddBullet("Cashier = server");
@@ -265,18 +286,23 @@ namespace ImtiazQueueSimulator.Forms
             realWorldCard.AddSubHeading("Visual Flow");
             realWorldCard.AddControl(CreateVisualFlow());
 
-            // ── 11. Model Comparison Table ──
-            var tableCard = AddCard("▤  MODEL COMPARISON TABLE");
-            tableCard.AddText("Overview of arrival/service distributions and analytical availability for the 6 models:");
-            tableCard.AddControl(CreateModelTable());
-
-            // ── 12. Important Assumptions ──
+            // ── 11. Model Assumptions ──
             var assumptionsCard = AddCard("⚠️  MODEL ASSUMPTIONS");
             assumptionsCard.AddBullet("Queue Discipline: First-Come, First-Served (FCFS/FIFO).");
             assumptionsCard.AddBullet("Parallel Cashiers: Multiple counters operate independently and in parallel.");
             assumptionsCard.AddBullet("Infinite Buffer: Customers do not balk (refuse to join) or reneg (leave queue).");
             assumptionsCard.AddBullet("Units consistency: All rates (λ, μ) must use the same time unit (hours).");
             assumptionsCard.AddBullet("System Stability: Analytical calculations require ρ < 1.");
+
+            // ── 12. How to Use Section ──
+            var usageCard = AddCard("🧭  HOW TO USE THE SIMULATOR");
+            usageCard.AddBullet("1. Select a queueing model from the model dropdown.");
+            usageCard.AddBullet("2. Enter/select λ (arrival rate) for incoming supermarket shoppers.");
+            usageCard.AddBullet("3. Enter/select μ (service rate) for checkout scanning speed.");
+            usageCard.AddBullet("4. Select the number of cashiers (N) currently active.");
+            usageCard.AddBullet("5. Click Run to execute the simulation.");
+            usageCard.AddBullet("6. Compare results side-by-side with theoretical formulas.");
+            usageCard.AddBullet("7. Use Customer Records, Queue History, Analytics, and Reports tabs to perform analytical diagnostics.");
 
             // ── 13. Glossary ──
             var glossaryCard = AddCard("📖  GLOSSARY OF SYMBOLS");
@@ -292,7 +318,7 @@ namespace ImtiazQueueSimulator.Forms
             glossaryCard.AddBullet("IA — Inter-arrival time");
             glossaryCard.AddBullet("U — Uniform random number (0, 1)");
 
-            // ── Layout Update ──
+            // ── Setup Responsive Resize Listener ──
             Resize += (s, e) => PerformLayoutUpdates();
             PerformLayoutUpdates();
         }
@@ -337,11 +363,76 @@ namespace ImtiazQueueSimulator.Forms
             return new CardContainer(card, contentFlow, this);
         }
 
+        private CardContainer AddModelCard(string title, string badgeText)
+        {
+            var contentFlow = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents  = false,
+                AutoSize      = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
+                Location      = new Point(20, 20),
+                BackColor     = Color.Transparent
+            };
+
+            var card = new Panel
+            {
+                BackColor = CardBg,
+                Margin    = new Padding(0, 0, 16, 16)
+            };
+
+            card.Paint += (s, e) =>
+            {
+                DrawRoundedBorder(e.Graphics, new Rectangle(0, 0, card.Width - 1, card.Height - 1), 10);
+            };
+
+            // Badge / Title row
+            var topFlow = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = true,
+                AutoSize      = true,
+                Margin        = new Padding(0, 0, 0, 8),
+                BackColor     = Color.Transparent
+            };
+            contentFlow.Controls.Add(topFlow);
+
+            var titleLbl = new Label
+            {
+                Text      = title,
+                Font      = new Font("Segoe UI Semibold", 11f, FontStyle.Bold),
+                ForeColor = TextDark,
+                AutoSize  = true,
+                Margin    = new Padding(0, 0, 8, 0)
+            };
+            topFlow.Controls.Add(titleLbl);
+
+            var badge = new Label
+            {
+                Text      = badgeText,
+                Font      = new Font("Segoe UI", 8f, FontStyle.Bold),
+                ForeColor = AccentBlue,
+                BackColor = Color.FromArgb(239, 246, 255),
+                Padding   = new Padding(6, 3, 6, 3),
+                AutoSize  = true,
+                Margin    = new Padding(0, 1, 0, 0)
+            };
+            topFlow.Controls.Add(badge);
+
+            card.Controls.Add(contentFlow);
+            _modelsFlow.Controls.Add(card);
+
+            _modelCards.Add((card, contentFlow));
+
+            return new CardContainer(card, contentFlow, this);
+        }
+
         private void PerformLayoutUpdates()
         {
             int cardW = Math.Max(320, Width - 40);
             _mainFlow.Width = Width;
 
+            // Layout standard full-width cards
             foreach (var item in _cards)
             {
                 item.Card.Width = cardW;
@@ -356,7 +447,7 @@ namespace ImtiazQueueSimulator.Forms
                     else if (child is Panel p)
                     {
                         p.Width = cardW - 40;
-                        p.PerformLayout(); // Trigger formula box resizing internally
+                        p.PerformLayout(); // update formula box or scrolled container internally
                     }
                     else if (child is TableLayoutPanel tbl)
                     {
@@ -372,6 +463,41 @@ namespace ImtiazQueueSimulator.Forms
                 item.Card.Height = item.ContentFlow.Height + 40;
             }
 
+            // Layout model cards inside the models grid FlowLayoutPanel
+            int gap = 16;
+            int numCols = 1;
+            if (cardW >= 780) numCols = 2; // Two columns on desktop
+            
+            int modelCardW = (cardW - (numCols - 1) * gap) / numCols;
+            foreach (var item in _modelCards)
+            {
+                item.Card.Width = modelCardW;
+                item.ContentFlow.Width = modelCardW - 40;
+
+                foreach (Control child in item.ContentFlow.Controls)
+                {
+                    if (child is Label lbl)
+                    {
+                        lbl.MaximumSize = new Size(modelCardW - 40, 0);
+                    }
+                    else if (child is Panel p)
+                    {
+                        p.Width = modelCardW - 40;
+                        p.PerformLayout();
+                    }
+                    else if (child is FlowLayoutPanel fl)
+                    {
+                        fl.Width = modelCardW - 40;
+                    }
+                }
+
+                item.ContentFlow.PerformLayout();
+                item.Card.Height = item.ContentFlow.Height + 40;
+            }
+
+            _modelsFlow.Width = cardW;
+            _modelsFlow.PerformLayout();
+
             _mainFlow.PerformLayout();
         }
 
@@ -385,8 +511,8 @@ namespace ImtiazQueueSimulator.Forms
 
             public CardContainer(Panel card, FlowLayoutPanel flow, AboutPanel parent)
             {
-                _card = card;
-                _flow = flow;
+                _card   = card;
+                _flow   = flow;
                 _parent = parent;
             }
 
@@ -423,12 +549,45 @@ namespace ImtiazQueueSimulator.Forms
                 _flow.Controls.Add(new Label
                 {
                     Text      = text,
-                    Font      = new Font("Segoe UI Semibold", 10f, FontStyle.Bold),
+                    Font      = new Font("Segoe UI Semibold", 10.5f, FontStyle.Bold),
                     ForeColor = TextDark,
                     AutoSize  = true,
                     Margin    = new Padding(0, 12, 0, 6),
                     BackColor = Color.Transparent
                 });
+            }
+
+            public void AddNote(string text)
+            {
+                var p = new Panel
+                {
+                    BackColor = Color.FromArgb(240, 253, 244), // Subtle Success Green Background
+                    Margin    = new Padding(0, 8, 0, 8)
+                };
+                p.Paint += (s, e) =>
+                {
+                    using var pen = new Pen(Color.FromArgb(187, 247, 208), 1f);
+                    e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1);
+                };
+
+                var lbl = new Label
+                {
+                    Text      = "ℹ  " + text,
+                    Font      = new Font("Segoe UI Semibold", 9.5f),
+                    ForeColor = AccentGreen,
+                    Location  = new Point(12, 10),
+                    AutoSize  = true,
+                    BackColor = Color.Transparent
+                };
+                p.Controls.Add(lbl);
+
+                p.Resize += (s, e) =>
+                {
+                    lbl.MaximumSize = new Size(p.Width - 24, 0);
+                    p.Height = lbl.Height + 20;
+                };
+
+                _flow.Controls.Add(p);
             }
 
             public void AddFormula(string formulaText)
@@ -463,38 +622,129 @@ namespace ImtiazQueueSimulator.Forms
 
                 _flow.Controls.Add(p);
             }
+
+            public void AddMetricRow(string symbol, string name, string explanation)
+            {
+                var rowPanel = _parent.CreateMetricRow(symbol, name, explanation);
+                _flow.Controls.Add(rowPanel);
+            }
+        }
+
+        private Panel CreateMetricRow(string symbol, string name, string explanation)
+        {
+            var p = new Panel
+            {
+                BackColor = Color.Transparent,
+                Margin    = new Padding(0, 0, 0, 12)
+            };
+
+            // Symbol badge
+            var symLbl = new Label
+            {
+                Text      = symbol,
+                Font      = new Font("Segoe UI Semibold", 10f, FontStyle.Bold),
+                ForeColor = AccentBlue,
+                BackColor = Color.FromArgb(239, 246, 255),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Size      = new Size(45, 24),
+                Location  = new Point(0, 0)
+            };
+            p.Controls.Add(symLbl);
+
+            // Name
+            var nameLbl = new Label
+            {
+                Text      = name,
+                Font      = new Font("Segoe UI Semibold", 10f, FontStyle.Bold),
+                ForeColor = TextDark,
+                Location  = new Point(60, 2),
+                AutoSize  = true,
+                BackColor = Color.Transparent
+            };
+            p.Controls.Add(nameLbl);
+
+            // Explanation
+            var expLbl = new Label
+            {
+                Text      = explanation,
+                Font      = new Font("Segoe UI", 9.5f),
+                ForeColor = TextMid,
+                Location  = new Point(60, 28),
+                AutoSize  = true,
+                BackColor = Color.Transparent
+            };
+            p.Controls.Add(expLbl);
+
+            // Divider
+            var div = new Panel
+            {
+                BackColor = Border,
+                Height    = 1,
+                Location  = new Point(0, 0)
+            };
+            p.Controls.Add(div);
+
+            p.Resize += (s, e) =>
+            {
+                int w = p.Width;
+                expLbl.MaximumSize = new Size(w - 70, 0);
+                div.Location = new Point(0, expLbl.Bottom + 12);
+                div.Width    = w;
+                p.Height     = div.Bottom + 4;
+            };
+
+            return p;
+        }
+
+        private Panel CreateTableScrollContainer(Control table)
+        {
+            var p = new Panel
+            {
+                AutoScroll = true,
+                Margin     = new Padding(0, 12, 0, 12),
+                BackColor  = Color.Transparent
+            };
+            p.Controls.Add(table);
+
+            p.Resize += (s, e) =>
+            {
+                table.Width = Math.Max(740, p.Width - 10);
+                p.Height    = table.Height + 24; // buffer for horizontal scrollbar
+            };
+
+            return p;
         }
 
         private TableLayoutPanel CreateModelTable()
         {
             var tbl = new TableLayoutPanel
             {
-                ColumnCount = 5,
-                RowCount    = 7,
-                AutoSize    = true,
-                Margin      = new Padding(0, 12, 0, 12),
+                ColumnCount     = 5,
+                RowCount        = 7,
+                AutoSize        = true,
+                Margin          = new Padding(0),
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
-                BackColor   = Color.White
+                BackColor       = Color.White
             };
 
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16f));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
 
-            string[] headers = { "Model", "Arrival", "Service", "Servers", "Analytical Result" };
+            string[] headers = { "Model", "Arrival Process", "Service Process", "Servers", "Analytical / Simulation Method" };
             for (int i = 0; i < headers.Length; i++)
             {
                 var lbl = new Label
                 {
                     Text      = headers[i],
-                    Font      = new Font("Segoe UI Bold", 9.5f, FontStyle.Bold),
+                    Font      = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold),
                     ForeColor = Color.White,
-                    BackColor = Color.FromArgb(15, 23, 42),
+                    BackColor = Color.FromArgb(15, 23, 42), // Navy Dark Header
                     Dock      = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleCenter,
-                    Padding   = new Padding(8),
+                    Padding   = new Padding(12, 14, 12, 14),
                     Margin    = new Padding(0)
                 };
                 tbl.Controls.Add(lbl, i, 0);
@@ -506,12 +756,17 @@ namespace ImtiazQueueSimulator.Forms
                 new string[] { "M/M/N", "Markovian (Poisson)", "Exponential", "N", "Exact formulas" },
                 new string[] { "M/G/1", "Markovian (Poisson)", "General", "1", "P-K formula" },
                 new string[] { "M/G/N", "Markovian (Poisson)", "General", "N", "Simulation-based" },
-                new string[] { "G/G/1", "General", "General", "1", "Kingman approx." },
+                new string[] { "G/G/1", "General", "General", "1", "Kingman approximation" },
                 new string[] { "G/G/N", "General", "General", "N", "Simulation-based" }
             };
 
             for (int r = 0; r < data.Length; r++)
             {
+                int rowIdx = r + 1;
+                Color originalBg = r % 2 == 0 ? Color.FromArgb(248, 250, 252) : Color.White;
+                Color hoverBg    = Color.FromArgb(239, 246, 255); // subtle blue row highlight
+
+                var rowCells = new List<Label>();
                 for (int c = 0; c < 5; c++)
                 {
                     var lbl = new Label
@@ -521,11 +776,25 @@ namespace ImtiazQueueSimulator.Forms
                         ForeColor = TextMid,
                         Dock      = DockStyle.Fill,
                         TextAlign = c == 0 ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter,
-                        Padding   = new Padding(6),
+                        Padding   = new Padding(12, 10, 12, 10),
                         Margin    = new Padding(0),
-                        BackColor = r % 2 == 0 ? Color.FromArgb(248, 250, 252) : Color.White
+                        BackColor = originalBg
                     };
-                    tbl.Controls.Add(lbl, c, r + 1);
+                    tbl.Controls.Add(lbl, c, rowIdx);
+                    rowCells.Add(lbl);
+                }
+
+                // Bind hover events to row cells
+                foreach (var cell in rowCells)
+                {
+                    cell.MouseEnter += (s, e) =>
+                    {
+                        foreach (var c in rowCells) c.BackColor = hoverBg;
+                    };
+                    cell.MouseLeave += (s, e) =>
+                    {
+                        foreach (var c in rowCells) c.BackColor = originalBg;
+                    };
                 }
             }
 
@@ -573,19 +842,6 @@ namespace ImtiazQueueSimulator.Forms
             }
 
             return flow;
-        }
-
-        private Label MakeLabel(string text, Font font, Color color, int x, int y, bool autoSize)
-        {
-            return new Label
-            {
-                Text      = text,
-                Font      = font,
-                ForeColor = color,
-                AutoSize  = autoSize,
-                Location  = new Point(x, y),
-                BackColor = Color.Transparent
-            };
         }
 
         private void DrawRoundedBorder(Graphics g, Rectangle r, int rad)
