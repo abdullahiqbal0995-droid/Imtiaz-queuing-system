@@ -11,108 +11,116 @@ using ImtiazQueueSimulator.Models;
 namespace ImtiazQueueSimulator.Controls
 {
     /// <summary>
-    /// Premium Enterprise Gantt Monitoring Dashboard.
-    /// Designed to match Microsoft Project, Azure DevOps Timeline,
-    /// Monday.com, Jira Advanced Roadmaps, and Grafana quality standards.
-    ///
-    /// Architecture:
-    ///  Section 1 — Header Card (title + subtitle + right-side zoom toolbar)
-    ///  Section 2 — Filter Bar Card (server filter | legend | search | time range)
-    ///  Section 3 — Interactive Gantt Timeline (pinned server column + canvas)
-    ///  Section 4 — Selected Customer Details Panel (event timeline + metrics)
-    ///  Section 5 — Bottom KPI Cards (8 cards)
-    ///  Section 6 — Help Card
+    /// Enterprise Gantt Monitoring Dashboard — Exact UI replica of the target design.
+    /// Features:
+    ///   1. Top Card: Header with Chart Icon, Title, Subtitle, and 6 Toolbar Action Buttons
+    ///   2. Filter Card: Server Dropdown, 7-Item Legend, Search Box with Search Icon, Time Range Badge
+    ///   3. Gantt Timeline Card: Pinned left server column (Cashier Name, Green dot, Utilization %),
+    ///      sticky header time axis, multi-colored customer activity blocks (Busy, Setup, Break, etc.)
+    ///   4. Selected Customer Details Panel: 3 sub-cards:
+    ///        - Left: Customer profile (Name, ID, Server, Status pill, Color box)
+    ///        - Middle: 8 Timing Metrics cards + Visual Progress Stepper line
+    ///        - Right: Event Timeline feed list with colored dots and timestamps
+    ///   5. Bottom 6 Executive KPI Metric Cards with round icon badges
+    ///   6. Bottom Help Section Card
     /// </summary>
     public class EnterpriseGanttControl : UserControl
     {
         // ── State ──────────────────────────────────────────────────────────────
         private SimulationResult? _result;
-        private float  _zoomLevel  = 1.0f;
-        private string _search     = "";
-        private int    _serverFilter = 0;   // 0 = All
+        private float _zoomLevel = 1.0f;
+        private string _search = "";
+        private int _serverFilter = 0;   // 0 = All Servers
         private Customer? _selected = null;
-        private Customer? _hovered  = null;
-        private ToolTip _tt = new ToolTip { InitialDelay = 400, ReshowDelay = 100 };
+        private Customer? _hovered = null;
+        private ToolTip _tt = new ToolTip { InitialDelay = 300, ReshowDelay = 100 };
 
-        // ── Layout handles ─────────────────────────────────────────────────────
-        private Panel       _scroll        = null!;  // outer scrollable wrapper
-        private Panel       _headerCard    = null!;
-        private Panel       _filterCard    = null!;
-        private Panel       _ganttWrapper  = null!;  // card that holds the gantt
-        private Panel       _serverColPanel= null!;  // pinned left server labels
-        private Panel       _canvasPanel   = null!;  // scrollable timeline canvas
-        private Panel       _detailsCard   = null!;
-        private FlowLayoutPanel _kpiPanel  = null!;
-        private Panel       _helpCard      = null!;
+        // ── Main Containers ───────────────────────────────────────────────────
+        private Panel _scroll = null!;
+        private Panel _headerCard = null!;
+        private Panel _filterCard = null!;
+        private Panel _ganttWrapper = null!;
+        private Panel _serverColPanel = null!;
+        private Panel _canvasPanel = null!;
+        private Panel _detailsCard = null!;
+        private Panel _kpiWrapper = null!;
+        private Panel _helpCard = null!;
 
-        // Filter controls
-        private ComboBox    _cmbServer     = null!;
-        private TextBox     _txtSearch     = null!;
+        // ── Details Sub-Panels ────────────────────────────────────────────────
+        private Panel _detLeftPanel = null!;
+        private Panel _detCenterPanel = null!;
+        private Panel _detRightPanel = null!;
 
-        // Details card labels
-        private Label _detCustName    = null!;
-        private Label _detCustId      = null!;
-        private Label _detServer      = null!;
-        private Label _detArrival     = null!;
-        private Label _detQueue       = null!;
-        private Label _detServiceStart= null!;
-        private Label _detDeparture   = null!;
-        private Label _detWait        = null!;
-        private Label _detService     = null!;
-        private Label _detSystem      = null!;
-        private Label _detStatus      = null!;
-        private Panel _detEventTimeline= null!;
+        // Left Detail Controls
+        private Label _lblDetTitle = null!;
+        private Label _lblDetId = null!;
+        private Label _lblDetServerVal = null!;
+        private Label _lblDetStatusVal = null!;
+        private Panel _pnlDetColorBox = null!;
+        private Label _lblDetBadge = null!;
 
-        // KPI metric cards
-        private MetricCard _kSimTime = null!, _kServers = null!, _kUtil = null!, _kServed = null!;
-        private MetricCard _kIdle = null!, _kAvgWait = null!, _kAvgSvc = null!, _kPeakQ = null!;
+        // Center Detail Metric Labels
+        private Label _lblArrVal = null!, _lblQVal = null!, _lblSvcStartVal = null!, _lblDepVal = null!;
+        private Label _lblWaitVal = null!, _lblSvcTimeVal = null!, _lblSysTimeVal = null!, _lblAssignedServerVal = null!;
+        private Panel _stepperPanel = null!;
 
-        // ── Design Tokens ─────────────────────────────────────────────────────
-        private static readonly Color Bg          = Color.FromArgb(244, 246, 250);
-        private static readonly Color White       = Color.White;
-        private static readonly Color TextH       = Color.FromArgb(15,  23,  42);   // Slate 900
-        private static readonly Color TextM       = Color.FromArgb(51,  65,  85);   // Slate 700
-        private static readonly Color TextL       = Color.FromArgb(100, 116, 139);  // Slate 500
-        private static readonly Color Border      = Color.FromArgb(226, 232, 240);  // Slate 200
-        private static readonly Color TrackBg     = Color.FromArgb(248, 250, 252);  // Slate 50
-        private static readonly Color GridLine    = Color.FromArgb(241, 245, 249);  // Slate 100
-        private static readonly Color SelGold     = Color.FromArgb(250, 176, 5);    // Gold highlight
-        private static readonly Color AccentBlue  = Color.FromArgb(37,  99,  235);
+        // Right Detail Event Timeline Panel
+        private Panel _eventTimelineList = null!;
 
-        // Row geometry
-        private const int RowH    = 90;   // lane height
-        private const int TaskH   = 46;   // bar height
-        private const int TaskPad = 10;   // padding inside bar
-        private const int TaskR   = 10;   // corner radius
-        private const int AxisH   = 50;   // top time axis height
-        private const int LeftW   = 200;  // pinned server label column
+        // Controls
+        private ComboBox _cmbServer = null!;
+        private TextBox _txtSearch = null!;
+        private Label _lblTimeRange = null!;
 
-        // ── 8-color modern palette ─────────────────────────────────────────────
-        private static readonly Color[] Palette = new Color[]
+        // KPI Circular Metric Card Handles
+        private Panel[] _kpiCards = new Panel[6];
+        private Label[] _kpiValLabels = new Label[6];
+
+        // ── Design Tokens & Palette ───────────────────────────────────────────
+        private static readonly Color BgColor = Color.FromArgb(246, 248, 252);
+        private static readonly Color WhiteBg = Color.White;
+        private static readonly Color TextHeader = Color.FromArgb(30, 41, 59);      // Slate 800
+        private static readonly Color TextMid = Color.FromArgb(71, 85, 105);        // Slate 600
+        private static readonly Color TextMuted = Color.FromArgb(148, 163, 184);   // Slate 400
+        private static readonly Color BorderColor = Color.FromArgb(226, 232, 240); // Slate 200
+        private static readonly Color TrackBgColor = Color.FromArgb(248, 250, 252);
+        private static readonly Color GridPenColor = Color.FromArgb(241, 245, 249);
+        private static readonly Color PrimaryBlue = Color.FromArgb(37, 99, 235);    // #2563EB
+
+        // Activity Block Palette (matches target screenshot exactly)
+        private static readonly Color ClrBusy = Color.FromArgb(37, 99, 235);     // Blue #2563EB
+        private static readonly Color ClrIdle = Color.FromArgb(203, 213, 225);   // Slate 300 #CBD5E1
+        private static readonly Color ClrWaiting = Color.FromArgb(249, 115, 22);   // Orange #F97316
+        private static readonly Color ClrCompleted = Color.FromArgb(16, 185, 129);  // Green #10B981
+        private static readonly Color ClrSetup = Color.FromArgb(124, 58, 237);    // Purple #7C3AED
+        private static readonly Color ClrBreak = Color.FromArgb(236, 72, 153);    // Pink/Magenta #EC4899
+        private static readonly Color ClrOverload = Color.FromArgb(220, 38, 38);  // Red #DC2626
+
+        private static readonly Color[] CustomerPalette = new Color[]
         {
-            Color.FromArgb(37,  99,  235),  // Blue     #2563EB
-            Color.FromArgb(16,  185, 129),  // Green    #10B981
-            Color.FromArgb(124, 58,  237),  // Purple   #7C3AED
-            Color.FromArgb(249, 115, 22),   // Orange   #F97316
-            Color.FromArgb(20,  184, 166),  // Teal     #14B8A6
-            Color.FromArgb(236, 72,  153),  // Pink     #EC4899
-            Color.FromArgb(6,   182, 212),  // Cyan     #06B6D4
-            Color.FromArgb(99,  102, 241),  // Indigo   #6366F1
+            ClrBusy, ClrWaiting, ClrSetup, ClrCompleted, ClrBusy, ClrBreak, ClrBusy, ClrWaiting, ClrCompleted
         };
+
+        // Layout Constants
+        private const int RowHeight = 85;
+        private const int TaskHeight = 44;
+        private const int TaskRadius = 8;
+        private const int AxisHeight = 44;
+        private const int PinnedColWidth = 180;
 
         public EnterpriseGanttControl()
         {
-            BackColor = Bg;
+            BackColor = BgColor;
             AutoScroll = true;
             DoubleBuffered = true;
-            Build();
+            BuildUI();
         }
 
         // ═══════════════════════════════════════════════════════════════════════
         //  UI BUILDER
         // ═══════════════════════════════════════════════════════════════════════
 
-        private void Build()
+        private void BuildUI()
         {
             Controls.Clear();
 
@@ -120,143 +128,158 @@ namespace ImtiazQueueSimulator.Controls
             {
                 Dock = DockStyle.Fill,
                 AutoScroll = true,
-                BackColor = Bg,
-                Padding = new Padding(24, 24, 24, 24)
+                BackColor = BgColor,
+                Padding = new Padding(20, 20, 20, 20)
             };
             Controls.Add(_scroll);
 
-            int y = 0;
+            int currentY = 0;
 
             // ── 1. HEADER CARD ────────────────────────────────────────────────
-            _headerCard = Card(y, 82);
-            BuildHeader(_headerCard);
+            _headerCard = CreateCardPanel(currentY, 78);
+            BuildHeaderSection(_headerCard);
             _scroll.Controls.Add(_headerCard);
-            y += 82 + 20;
+            currentY += 78 + 18;
 
-            // ── 2. FILTER BAR CARD ────────────────────────────────────────────
-            _filterCard = Card(y, 58);
-            BuildFilterBar(_filterCard);
+            // ── 2. FILTER & CONTROL BAR CARD ──────────────────────────────────
+            _filterCard = CreateCardPanel(currentY, 56);
+            BuildFilterSection(_filterCard);
             _scroll.Controls.Add(_filterCard);
-            y += 58 + 20;
+            currentY += 56 + 18;
 
             // ── 3. GANTT TIMELINE CARD ────────────────────────────────────────
-            _ganttWrapper = Card(y, 400);
-            BuildGanttArea(_ganttWrapper);
+            _ganttWrapper = CreateCardPanel(currentY, 380);
+            BuildGanttSection(_ganttWrapper);
             _scroll.Controls.Add(_ganttWrapper);
-            y += 400 + 20;
+            currentY += 380 + 18;
 
-            // ── 4. CUSTOMER DETAILS PANEL ─────────────────────────────────────
-            _detailsCard = Card(y, 210);
-            BuildDetailsPanel(_detailsCard);
+            // ── 4. CUSTOMER DETAILS PANEL CARD ────────────────────────────────
+            _detailsCard = CreateCardPanel(currentY, 260);
+            BuildDetailsSection(_detailsCard);
             _scroll.Controls.Add(_detailsCard);
-            y += 210 + 20;
+            currentY += 260 + 18;
 
-            // ── 5. KPI CARDS ─────────────────────────────────────────────────
-            _kpiPanel = new FlowLayoutPanel
+            // ── 5. KPI METRIC CARDS ──────────────────────────────────────────
+            _kpiWrapper = new Panel
             {
-                Location  = new Point(0, y),
-                Height    = 165,
-                Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                BackColor = Color.Transparent,
-                WrapContents = true,
-                Padding   = new Padding(0)
+                Location = new Point(0, currentY),
+                Height = 135,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                BackColor = Color.Transparent
             };
-            BuildKPICards(_kpiPanel);
-            _scroll.Controls.Add(_kpiPanel);
-            y += 165 + 20;
+            BuildKPISection(_kpiWrapper);
+            _scroll.Controls.Add(_kpiWrapper);
+            currentY += 135 + 18;
 
             // ── 6. HELP CARD ──────────────────────────────────────────────────
-            _helpCard = Card(y, 110);
-            BuildHelpCard(_helpCard);
+            _helpCard = CreateCardPanel(currentY, 70);
+            BuildHelpSection(_helpCard);
             _scroll.Controls.Add(_helpCard);
-            y += 110 + 30;
+            currentY += 70 + 24;
 
-            _scroll.Resize += (s, e) => Relayout();
-            Relayout();
+            _scroll.Resize += (s, e) => RelayoutSections();
+            RelayoutSections();
         }
 
-        // ── Section Builders ──────────────────────────────────────────────────
-
-        private void BuildHeader(Panel card)
+        // ── 1. Header Section ─────────────────────────────────────────────────
+        private void BuildHeaderSection(Panel card)
         {
-            // Left: Title + subtitle
+            // Chart Icon Box
+            var pnlIcon = new Panel { Size = new Size(38, 38), Location = new Point(18, 18), BackColor = Color.Transparent };
+            pnlIcon.Paint += (s, e) =>
+            {
+                var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+                var r = new Rectangle(0, 0, 36, 36);
+                using var b = new SolidBrush(Color.FromArgb(239, 246, 255));
+                using var p = RoundPath(r, 8);
+                g.FillPath(b, p);
+                // Draw mini chart bars
+                using var barBrush = new SolidBrush(PrimaryBlue);
+                g.FillRectangle(barBrush, 8, 20, 5, 10);
+                g.FillRectangle(barBrush, 16, 12, 5, 18);
+                g.FillRectangle(barBrush, 24, 7, 5, 23);
+            };
+            card.Controls.Add(pnlIcon);
+
+            // Title & Subtitle
             var lblTitle = new Label
             {
-                Text      = "SERVER ACTIVITY TIMELINE — GANTT MONITORING DASHBOARD",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
-                ForeColor = TextH,
-                AutoSize  = true,
-                Location  = new Point(22, 14),
+                Text = "SERVER ACTIVITY TIMELINE (GANTT MONITORING DASHBOARD)",
+                Font = new Font("Segoe UI", 12f, FontStyle.Bold),
+                ForeColor = TextHeader,
+                AutoSize = true,
+                Location = new Point(64, 16),
                 BackColor = Color.Transparent
             };
             card.Controls.Add(lblTitle);
 
             var lblSub = new Label
             {
-                Text      = "Visualize server utilization, customer checkout activity and waiting metrics in real time.",
-                Font      = new Font("Segoe UI", 9f),
-                ForeColor = TextL,
-                AutoSize  = true,
-                Location  = new Point(22, 44),
+                Text = "Visualize server utilization, customer checkout activity, and waiting metrics in real-time.",
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = TextMid,
+                AutoSize = true,
+                Location = new Point(64, 42),
                 BackColor = Color.Transparent
             };
             card.Controls.Add(lblSub);
 
-            // Right: Zoom/action toolbar
-            var flow = new FlowLayoutPanel
+            // Right Action Toolbar Buttons
+            var flowButtons = new FlowLayoutPanel
             {
-                Anchor        = AnchorStyles.Top | AnchorStyles.Right,
-                AutoSize      = true,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                AutoSize = true,
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents  = false,
-                BackColor     = Color.Transparent,
-                Location      = new Point(card.Width - 570, 22)
+                WrapContents = false,
+                BackColor = Color.Transparent,
+                Location = new Point(card.Width - 620, 20)
             };
-            card.Controls.Add(flow);
-            card.Resize += (s, e) => flow.Location = new Point(card.Width - flow.PreferredSize.Width - 20, 22);
+            card.Controls.Add(flowButtons);
+            card.Resize += (s, e) => flowButtons.Location = new Point(card.Width - flowButtons.PreferredSize.Width - 18, 20);
 
-            foreach (var (txt, act) in new (string, Action)[]
+            var actionList = new (string Label, Action Action)[]
             {
-                ("🔍+", () => Zoom(1.25f)),
-                ("🔍−", () => Zoom(0.8f)),
-                ("⤢ Fit", ResetZoom),
-                ("↺ Reset", ResetAll),
-                ("📷 PNG", ExportPng),
-                ("⛶", FullScreen)
-            })
+                ("🔍 Zoom In",   () => ChangeZoom(1.25f)),
+                ("🔍 Zoom Out",  () => ChangeZoom(0.8f)),
+                ("⤢ Fit View",  ResetZoomLevel),
+                ("↺ Reset",     ResetAllFilters),
+                ("📥 Export",    ExportToPngImage),
+                ("⛶ Full Screen", OpenFullScreenModal)
+            };
+
+            foreach (var (lbl, act) in actionList)
             {
-                var t = txt; var a = act;
-                var b = new Button
+                var btn = new Button
                 {
-                    Text      = t,
-                    Font      = new Font("Segoe UI Semibold", 8.5f),
+                    Text = lbl,
+                    Font = new Font("Segoe UI Semibold", 8.5f),
                     FlatStyle = FlatStyle.Flat,
-                    Size      = new Size(t.Length <= 2 ? 38 : 76, 34),
-                    BackColor = White,
-                    ForeColor = TextM,
-                    Cursor    = Cursors.Hand,
-                    Margin    = new Padding(0, 0, 6, 0)
+                    Height = 34,
+                    AutoSize = true,
+                    Padding = new Padding(10, 0, 10, 0),
+                    BackColor = WhiteBg,
+                    ForeColor = TextHeader,
+                    Cursor = Cursors.Hand,
+                    Margin = new Padding(0, 0, 6, 0)
                 };
-                b.FlatAppearance.BorderColor = Border;
-                b.FlatAppearance.BorderSize  = 1;
-                b.Click += (s, e) => a();
-                flow.Controls.Add(b);
+                btn.FlatAppearance.BorderColor = BorderColor;
+                btn.FlatAppearance.BorderSize = 1;
+                btn.Click += (s, e) => act();
+                flowButtons.Controls.Add(btn);
             }
         }
 
-        private void BuildFilterBar(Panel card)
+        // ── 2. Filter & Legend Toolbar ─────────────────────────────────────────
+        private void BuildFilterSection(Panel card)
         {
-            // Server filter
-            var lblSrv = new Label { Text = "Server:", Font = new Font("Segoe UI Semibold", 9f), ForeColor = TextM, AutoSize = true, Location = new Point(18, 18), BackColor = Color.Transparent };
-            card.Controls.Add(lblSrv);
-
+            // Server Dropdown
             _cmbServer = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font          = new Font("Segoe UI", 8.5f),
-                Size          = new Size(130, 26),
-                Location      = new Point(70, 14),
-                FlatStyle     = FlatStyle.Flat
+                Font = new Font("Segoe UI Semibold", 9f),
+                Size = new Size(135, 28),
+                Location = new Point(16, 14),
+                FlatStyle = FlatStyle.Flat
             };
             _cmbServer.Items.Add("All Servers");
             _cmbServer.SelectedIndex = 0;
@@ -268,281 +291,383 @@ namespace ImtiazQueueSimulator.Controls
             };
             card.Controls.Add(_cmbServer);
 
-            // Legend badges  (middle area)
-            var (busyClr, idleClr, waitClr, compClr, setupClr, brkClr, ovClr) =
-                (Palette[0], Border, Palette[4], Palette[1], Palette[6], Palette[4], Color.FromArgb(220,38,38));
-
-            var legends = new (string L, Color C)[]
+            // Legend Badges
+            var legends = new (string Name, Color Color)[]
             {
-                ("Busy",  Palette[0]),
-                ("Idle",  Color.FromArgb(203,213,225)),
-                ("Waiting", Palette[3]),
-                ("Done", Palette[1]),
-                ("Setup", Palette[6]),
-                ("Break", Palette[4]),
-                ("Overload", Color.FromArgb(220,38,38))
+                ("Busy Service",   ClrBusy),
+                ("Idle",           ClrIdle),
+                ("Waiting",        ClrWaiting),
+                ("Completed",      ClrCompleted),
+                ("Setup / Active", ClrSetup),
+                ("Break",          ClrBreak),
+                ("Overload",       ClrOverload)
             };
 
-            int lx = 220;
-            foreach (var (l, c) in legends)
+            int lx = 170;
+            foreach (var (name, color) in legends)
             {
-                var dot = new Panel { Size = new Size(11, 11), Location = new Point(lx, 22), BackColor = c };
-                dot.Paint += (s, e) =>
+                var pnlDot = new Panel { Size = new Size(12, 12), Location = new Point(lx, 22), BackColor = color };
+                pnlDot.Paint += (s, e) =>
                 {
                     e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                    using var path = RoundRect(new Rectangle(0, 0, 10, 10), 3);
-                    using var b = new SolidBrush(c);
+                    using var path = RoundPath(new Rectangle(0, 0, 11, 11), 3);
+                    using var b = new SolidBrush(color);
                     e.Graphics.FillPath(b, path);
                 };
-                card.Controls.Add(dot);
+                card.Controls.Add(pnlDot);
 
-                var lbl = new Label { Text = l, Font = new Font("Segoe UI Semibold", 8f), ForeColor = TextM, AutoSize = true, Location = new Point(lx + 14, 19), BackColor = Color.Transparent };
+                var lbl = new Label
+                {
+                    Text = name,
+                    Font = new Font("Segoe UI Semibold", 8.25f),
+                    ForeColor = TextMid,
+                    AutoSize = true,
+                    Location = new Point(lx + 16, 19),
+                    BackColor = Color.Transparent
+                };
                 card.Controls.Add(lbl);
-                lx += lbl.PreferredWidth + 30;
+                lx += lbl.PreferredWidth + 24;
             }
 
-            // Search
-            var lblSearch = new Label { Text = "Search:", Font = new Font("Segoe UI Semibold", 9f), ForeColor = TextM, AutoSize = true, BackColor = Color.Transparent };
-            lblSearch.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            card.Controls.Add(lblSearch);
+            // Right Time Bounds Badge
+            _lblTimeRange = new Label
+            {
+                Text = "📅 00:00:00  →  02:00:00",
+                Font = new Font("Segoe UI Semibold", 8.5f),
+                ForeColor = TextHeader,
+                BackColor = TrackBgColor,
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(8, 5, 8, 5),
+                AutoSize = true,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+            card.Controls.Add(_lblTimeRange);
 
+            // Right Search Input
             _txtSearch = new TextBox
             {
-                Text          = "Customer ID…",
-                ForeColor     = TextL,
-                Font          = new Font("Segoe UI", 8.5f),
-                BorderStyle   = BorderStyle.FixedSingle,
-                Size          = new Size(145, 24),
-                BackColor     = TrackBg
+                Text = "Search Customer by ID or Name...",
+                ForeColor = TextMuted,
+                Font = new Font("Segoe UI", 8.5f),
+                BorderStyle = BorderStyle.FixedSingle,
+                Size = new Size(200, 26),
+                BackColor = WhiteBg
             };
             _txtSearch.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            _txtSearch.GotFocus  += (s, e) => { if (_txtSearch.Text == "Customer ID…") { _txtSearch.Text = ""; _txtSearch.ForeColor = TextH; } };
-            _txtSearch.LostFocus += (s, e) => { if (string.IsNullOrWhiteSpace(_txtSearch.Text)) { _txtSearch.Text = "Customer ID…"; _txtSearch.ForeColor = TextL; } };
+            _txtSearch.GotFocus += (s, e) => { if (_txtSearch.Text.StartsWith("Search Customer")) { _txtSearch.Text = ""; _txtSearch.ForeColor = TextHeader; } };
+            _txtSearch.LostFocus += (s, e) => { if (string.IsNullOrWhiteSpace(_txtSearch.Text)) { _txtSearch.Text = "Search Customer by ID or Name..."; _txtSearch.ForeColor = TextMuted; } };
             _txtSearch.TextChanged += (s, e) =>
             {
-                _search = _txtSearch.Text == "Customer ID…" ? "" : _txtSearch.Text.Trim();
+                _search = _txtSearch.Text.StartsWith("Search Customer") ? "" : _txtSearch.Text.Trim();
                 _canvasPanel?.Invalidate();
             };
             card.Controls.Add(_txtSearch);
 
             card.Resize += (s, e) =>
             {
-                _txtSearch.Location  = new Point(card.Width - 158, 15);
-                lblSearch.Location   = new Point(card.Width - 212, 19);
+                _lblTimeRange.Location = new Point(card.Width - _lblTimeRange.Width - 16, 13);
+                _txtSearch.Location = new Point(_lblTimeRange.Location.X - _txtSearch.Width - 14, 15);
             };
         }
 
-        private void BuildGanttArea(Panel card)
+        // ── 3. Gantt Timeline Section ──────────────────────────────────────────
+        private void BuildGanttSection(Panel card)
         {
-            // Title strip inside card
-            var strip = new Panel { Dock = DockStyle.Top, Height = 38, BackColor = TrackBg };
-            strip.Paint += (s, e) =>
-            {
-                using var pen = new Pen(Border, 1f);
-                e.Graphics.DrawLine(pen, 0, strip.Height - 1, strip.Width, strip.Height - 1);
-            };
-            var lbl = new Label { Text = "📅  Interactive Server Activity Gantt Timeline", Font = new Font("Segoe UI Semibold", 10f), ForeColor = TextH, AutoSize = true, Location = new Point(16, 9), BackColor = Color.Transparent };
-            strip.Controls.Add(lbl);
-            card.Controls.Add(strip);
-
-            // Main gantt area: pinned server col + scrollable canvas
-            var ganttArea = new Panel { Dock = DockStyle.Fill, BackColor = White };
+            var ganttArea = new Panel { Dock = DockStyle.Fill, BackColor = WhiteBg };
             card.Controls.Add(ganttArea);
-            ganttArea.BringToFront();
 
-            // Left: pinned server column
+            // Pinned Left Server Column
             _serverColPanel = new Panel
             {
-                Dock      = DockStyle.Left,
-                Width     = LeftW,
-                BackColor = TrackBg
+                Dock = DockStyle.Left,
+                Width = PinnedColWidth,
+                BackColor = WhiteBg
             };
             _serverColPanel.Paint += PaintServerColumn;
             ganttArea.Controls.Add(_serverColPanel);
 
-            // Right: scrollable canvas
+            // Scrollable Timeline Canvas
             _canvasPanel = new Panel
             {
-                Dock       = DockStyle.Fill,
-                BackColor  = White,
+                Dock = DockStyle.Fill,
+                BackColor = WhiteBg,
                 AutoScroll = true
             };
-            _canvasPanel.Paint      += PaintCanvas;
-            _canvasPanel.MouseMove  += Canvas_MouseMove;
+            _canvasPanel.Paint += PaintTimelineCanvas;
+            _canvasPanel.MouseMove += Canvas_MouseMove;
             _canvasPanel.MouseClick += Canvas_Click;
             ganttArea.Controls.Add(_canvasPanel);
             _canvasPanel.BringToFront();
         }
 
-        private void BuildDetailsPanel(Panel card)
+        // ── 4. Customer Details Panel (3 Sub-Cards Layout) ────────────────────
+        private void BuildDetailsSection(Panel card)
         {
-            var strip = new Panel { Dock = DockStyle.Top, Height = 38, BackColor = TrackBg };
-            strip.Paint += (s, e) =>
-            {
-                using var pen = new Pen(Border, 1f);
-                e.Graphics.DrawLine(pen, 0, strip.Height - 1, strip.Width, strip.Height - 1);
-            };
-            var lbl = new Label { Text = "🔍  Selected Customer Details", Font = new Font("Segoe UI Semibold", 10f), ForeColor = TextH, AutoSize = true, Location = new Point(16, 9), BackColor = Color.Transparent };
-            strip.Controls.Add(lbl);
-            card.Controls.Add(strip);
-
-            // placeholder when nothing selected
-            var ph = new Label
-            {
-                Name      = "ph",
-                Text      = "ℹ  Click any customer block on the timeline to view complete journey details here.",
-                Font      = new Font("Segoe UI Semibold", 9f),
-                ForeColor = TextL,
-                AutoSize  = false,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.Transparent
-            };
-            card.Controls.Add(ph);
-            ph.BringToFront();
-
-            // Details grid (hidden until selection)
+            // Table layout with 3 equal columns
             var grid = new TableLayoutPanel
             {
-                Name        = "detGrid",
-                Dock        = DockStyle.Fill,
+                Dock = DockStyle.Fill,
                 ColumnCount = 3,
-                RowCount    = 5,
-                BackColor   = Color.Transparent,
-                Visible     = false,
-                Padding     = new Padding(16, 12, 16, 12)
+                RowCount = 1,
+                BackColor = Color.Transparent,
+                Padding = new Padding(12)
             };
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33f));
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33f));
-            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 34f));
-            for (int i = 0; i < 5; i++) grid.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 26f));  // Left profile
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));  // Center metrics + stepper
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 24f));  // Right event feed
+            grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
             card.Controls.Add(grid);
 
-            // Helper to add a detail row cell
-            Label DLbl(string title, string val = "--")
-            {
-                var cell = new Panel { BackColor = Color.Transparent, Margin = new Padding(4, 2, 4, 2) };
-                cell.Controls.Add(new Label { Text = title, Font = new Font("Segoe UI Semibold", 7.5f), ForeColor = TextL, AutoSize = true, Location = new Point(0, 0) });
-                var v = new Label { Text = val, Font = new Font("Segoe UI Bold", 9.5f), ForeColor = TextH, AutoSize = true, Location = new Point(0, 16) };
-                cell.Controls.Add(v);
-                grid.Controls.Add(cell);
-                return v;
-            }
+            // ── SUB-CARD 1: LEFT CUSTOMER PROFILE ────────────────────────────
+            _detLeftPanel = CreateSubCardPanel();
+            grid.Controls.Add(_detLeftPanel, 0, 0);
 
-            _detCustName     = DLbl("CUSTOMER NAME");
-            _detCustId       = DLbl("CUSTOMER ID");
-            _detServer       = DLbl("SERVER");
-            _detArrival      = DLbl("ARRIVAL TIME");
-            _detQueue        = DLbl("QUEUE ENTRY");
-            _detServiceStart = DLbl("SERVICE START");
-            _detDeparture    = DLbl("DEPARTURE");
-            _detWait         = DLbl("WAITING TIME");
-            _detService      = DLbl("SERVICE TIME");
-            _detSystem       = DLbl("SYSTEM TIME");
-            _detStatus       = DLbl("STATUS");
+            var lblLHeader = new Label { Text = "👤 CUSTOMER DETAILS", Font = new Font("Segoe UI Bold", 9f), ForeColor = TextHeader, Location = new Point(14, 12), AutoSize = true };
+            _detLeftPanel.Controls.Add(lblLHeader);
 
-            // Event timeline mini-bar (row 4, span all cols)
-            _detEventTimeline = new Panel
+            _lblDetTitle = new Label { Text = "Customer 012", Font = new Font("Segoe UI Bold", 13f), ForeColor = TextHeader, Location = new Point(14, 38), AutoSize = true };
+            _detLeftPanel.Controls.Add(_lblDetTitle);
+
+            _lblDetBadge = new Label
             {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.Transparent,
-                Margin    = new Padding(4, 4, 4, 4)
+                Text = "Busy Service",
+                Font = new Font("Segoe UI Semibold", 8f),
+                ForeColor = ClrBusy,
+                BackColor = Color.FromArgb(239, 246, 255),
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(6, 2, 6, 2),
+                Location = new Point(160, 42),
+                AutoSize = true
             };
-            _detEventTimeline.Paint += PaintEventTimeline;
-            grid.Controls.Add(_detEventTimeline);
-            grid.SetColumnSpan(_detEventTimeline, 3);
+            _detLeftPanel.Controls.Add(_lblDetBadge);
+
+            _lblDetId = new Label { Text = "ID: C012", Font = new Font("Segoe UI Semibold", 9f), ForeColor = TextMid, Location = new Point(14, 68), AutoSize = true };
+            _detLeftPanel.Controls.Add(_lblDetId);
+
+            // Form Fields
+            int fy = 100;
+            _detLeftPanel.Controls.Add(new Label { Text = "Server", Font = new Font("Segoe UI", 8.5f), ForeColor = TextMuted, Location = new Point(14, fy) });
+            _lblDetServerVal = new Label { Text = "Cashier 01", Font = new Font("Segoe UI Semibold", 9f), ForeColor = TextHeader, Location = new Point(130, fy) };
+            _detLeftPanel.Controls.Add(_lblDetServerVal);
+
+            fy += 26;
+            _detLeftPanel.Controls.Add(new Label { Text = "Status", Font = new Font("Segoe UI", 8.5f), ForeColor = TextMuted, Location = new Point(14, fy) });
+            _lblDetStatusVal = new Label { Text = "In Service", Font = new Font("Segoe UI Semibold", 8.5f), ForeColor = PrimaryBlue, BackColor = Color.FromArgb(239, 246, 255), Padding = new Padding(6, 2, 6, 2), Location = new Point(130, fy - 2), AutoSize = true };
+            _detLeftPanel.Controls.Add(_lblDetStatusVal);
+
+            fy += 28;
+            _detLeftPanel.Controls.Add(new Label { Text = "Color", Font = new Font("Segoe UI", 8.5f), ForeColor = TextMuted, Location = new Point(14, fy) });
+            _pnlDetColorBox = new Panel { Size = new Size(16, 16), Location = new Point(134, fy + 2), BackColor = ClrBusy };
+            _detLeftPanel.Controls.Add(_pnlDetColorBox);
+
+            // ── SUB-CARD 2: CENTER TIMING METRICS & STEPPER ──────────────────
+            _detCenterPanel = CreateSubCardPanel();
+            grid.Controls.Add(_detCenterPanel, 1, 0);
+
+            var centerGrid = new TableLayoutPanel
+            {
+                Location = new Point(10, 10),
+                Size = new Size(460, 120),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                ColumnCount = 4,
+                RowCount = 2,
+                BackColor = Color.Transparent
+            };
+            for (int i = 0; i < 4; i++) centerGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            centerGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+            centerGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+            _detCenterPanel.Controls.Add(centerGrid);
+
+            _lblArrVal = AddDetailMetricCell(centerGrid, 0, 0, "📅", "Arrival Time", "00:38:20", PrimaryBlue);
+            _lblQVal = AddDetailMetricCell(centerGrid, 1, 0, "📥", "Queue Entry", "00:38:45", PrimaryBlue);
+            _lblSvcStartVal = AddDetailMetricCell(centerGrid, 2, 0, "🏁", "Service Start", "00:38:45", ClrCompleted);
+            _lblDepVal = AddDetailMetricCell(centerGrid, 3, 0, "🚩", "Departure Time", "00:53:20", ClrOverload);
+
+            _lblWaitVal = AddDetailMetricCell(centerGrid, 0, 1, "⌛", "Waiting Time", "00:00:25", ClrWaiting);
+            _lblSvcTimeVal = AddDetailMetricCell(centerGrid, 1, 1, "⏱", "Service Time", "00:14:35", PrimaryBlue);
+            _lblSysTimeVal = AddDetailMetricCell(centerGrid, 2, 1, "∑", "System Time", "00:15:00", ClrCompleted);
+            _lblAssignedServerVal = AddDetailMetricCell(centerGrid, 3, 1, "👤", "Assigned Server", "Cashier 01", TextHeader);
+
+            // Stepper Visual Line
+            _stepperPanel = new Panel
+            {
+                Location = new Point(16, 140),
+                Height = 80,
+                Width = 440,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                BackColor = Color.Transparent
+            };
+            _stepperPanel.Paint += PaintStepperLine;
+            _detCenterPanel.Controls.Add(_stepperPanel);
+
+            // ── SUB-CARD 3: RIGHT EVENT TIMELINE FEED ─────────────────────────
+            _detRightPanel = CreateSubCardPanel();
+            grid.Controls.Add(_detRightPanel, 2, 0);
+
+            var lblRHeader = new Label { Text = "EVENT TIMELINE", Font = new Font("Segoe UI Bold", 9f), ForeColor = TextHeader, Location = new Point(14, 12), AutoSize = true };
+            _detRightPanel.Controls.Add(lblRHeader);
+
+            _eventTimelineList = new Panel
+            {
+                Location = new Point(10, 36),
+                Size = new Size(220, 180),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom,
+                BackColor = Color.Transparent
+            };
+            _eventTimelineList.Paint += PaintEventTimelineList;
+            _detRightPanel.Controls.Add(_eventTimelineList);
         }
 
-        private void BuildKPICards(FlowLayoutPanel panel)
+        private Label AddDetailMetricCell(TableLayoutPanel grid, int col, int row, string icon, string title, string val, Color valColor)
         {
-            Color c1 = AccentBlue, c2 = Palette[1], c3 = Palette[2], c4 = Palette[3];
-            _kSimTime = MC("SIMULATION TIME",     "--:--:--", "total runtime",         c1);
-            _kServers = MC("TOTAL SERVERS",       "--",       "active cashiers",        c3);
-            _kUtil    = MC("AVG UTILIZATION",     "--",       "server workload",        c2);
-            _kServed  = MC("CUSTOMERS SERVED",    "0",        "completed checkouts",    c2);
-            _kIdle    = MC("IDLE CAPACITY",       "--",       "total idle time",        c4);
-            _kAvgWait = MC("AVG WAITING (Wq)",    "--",       "minutes in queue",       c4);
-            _kAvgSvc  = MC("AVG SERVICE (W)",     "--",       "minutes checkout",       c1);
-            _kPeakQ   = MC("PEAK QUEUE (Lq)",     "0",        "max queue length",       Color.FromArgb(220,38,38));
+            var cell = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
 
-            panel.Controls.AddRange(new Control[] { _kSimTime, _kServers, _kUtil, _kServed, _kIdle, _kAvgWait, _kAvgSvc, _kPeakQ });
+            var lblIcon = new Label { Text = icon, Font = new Font("Segoe UI", 11f), Location = new Point(2, 4), AutoSize = true };
+            cell.Controls.Add(lblIcon);
+
+            var lblT = new Label { Text = title, Font = new Font("Segoe UI Semibold", 7.5f), ForeColor = TextMuted, Location = new Point(24, 2), AutoSize = true };
+            cell.Controls.Add(lblT);
+
+            var lblV = new Label { Text = val, Font = new Font("Segoe UI Bold", 9.5f), ForeColor = valColor, Location = new Point(24, 18), AutoSize = true };
+            cell.Controls.Add(lblV);
+
+            grid.Controls.Add(cell, col, row);
+            return lblV;
         }
 
-        private MetricCard MC(string t, string v, string s, Color a) =>
-            new MetricCard { Title = t, Value = v, Subtitle = s, AccentColor = a, Size = new Size(170, 155), Margin = new Padding(0, 0, 12, 0) };
-
-        private void BuildHelpCard(Panel card)
+        // ── 5. KPI Section ────────────────────────────────────────────────────
+        private void BuildKPISection(Panel wrapper)
         {
-            var strip = new Panel { Dock = DockStyle.Top, Height = 38, BackColor = TrackBg };
-            strip.Paint += (s, e) => { using var pen = new Pen(Border, 1f); e.Graphics.DrawLine(pen, 0, strip.Height - 1, strip.Width, strip.Height - 1); };
-            strip.Controls.Add(new Label { Text = "💡  How to Read This Dashboard", Font = new Font("Segoe UI Semibold", 10f), ForeColor = TextH, AutoSize = true, Location = new Point(16, 9), BackColor = Color.Transparent });
-            card.Controls.Add(strip);
+            wrapper.Controls.Clear();
+            int count = 6;
 
-            var lines = new[]
+            var kpiData = new (string Title, string Val, string Sub, Color Color, string Icon)[]
             {
-                "• Each horizontal lane (row) represents one checkout server (Cashier 01, 02…). Lane height is 90px for clarity.",
-                "• Each colored block is ONE customer. Its width equals the service duration. Wider block = longer service.",
-                "• Gray background strips indicate idle periods where the server is waiting for customers.",
-                "• Hover any block for full journey details. Click any block to populate the Customer Details panel below the chart."
+                ("Simulation Time",     "01:59:41", "Total Duration",       PrimaryBlue, "⏱"),
+                ("Total Servers",       "2",        "Active Servers",       ClrSetup,    "🖥"),
+                ("Average Utilization", "51.0%",    "Across All Servers",   ClrCompleted,"📊"),
+                ("Customers Served",    "27",       "Total Customers",      PrimaryBlue, "👥"),
+                ("Total Idle Time",     "01:08:57", "Idle Capacity",        ClrWaiting,  "⏳"),
+                ("Average Wait Time",   "00:00:42", "Across All Customers", ClrBreak,    "⏱")
             };
 
-            int ly = 46;
-            foreach (var line in lines)
+            for (int i = 0; i < count; i++)
             {
-                card.Controls.Add(new Label
+                var (title, val, sub, color, icon) = kpiData[i];
+
+                var card = new Panel
                 {
-                    Text      = line,
-                    Font      = new Font("Segoe UI", 8.5f),
-                    ForeColor = TextM,
-                    AutoSize  = false,
-                    Height    = 16,
-                    Width     = card.Width - 40,
-                    Location  = new Point(22, ly),
-                    BackColor = Color.Transparent
-                });
-                ly += 17;
+                    Size = new Size(160, 130),
+                    BackColor = WhiteBg
+                };
+
+                int idx = i;
+                card.Paint += (s, e) =>
+                {
+                    var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+                    var r = new Rectangle(1, 1, card.Width - 3, card.Height - 3);
+                    using var bg = new SolidBrush(WhiteBg);
+                    using var path = RoundPath(r, 14);
+                    g.FillPath(bg, path);
+                    using var pen = new Pen(BorderColor, 1.2f);
+                    g.DrawPath(pen, path);
+
+                    // Circle Icon Badge
+                    var circleR = new Rectangle(14, 16, 42, 42);
+                    using var cBg = new SolidBrush(color);
+                    g.FillEllipse(cBg, circleR);
+
+                    using var iconFont = new Font("Segoe UI", 13f);
+                    using var whiteB = new SolidBrush(Color.White);
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString(icon, iconFont, whiteB, circleR, sf);
+                };
+
+                // Title
+                card.Controls.Add(new Label { Text = title, Font = new Font("Segoe UI Semibold", 8f), ForeColor = TextMid, Location = new Point(64, 14), AutoSize = true });
+
+                // Value
+                var lblVal = new Label { Text = val, Font = new Font("Segoe UI Bold", 13f), ForeColor = TextHeader, Location = new Point(64, 30), AutoSize = true };
+                card.Controls.Add(lblVal);
+                _kpiValLabels[i] = lblVal;
+
+                // Subtitle
+                card.Controls.Add(new Label { Text = sub, Font = new Font("Segoe UI", 7.5f), ForeColor = TextMuted, Location = new Point(64, 54), AutoSize = true });
+
+                _kpiCards[i] = card;
+                wrapper.Controls.Add(card);
             }
+        }
+
+        // ── 6. Help Section ───────────────────────────────────────────────────
+        private void BuildHelpSection(Panel card)
+        {
+            var pnlIcon = new Panel { Size = new Size(20, 20), Location = new Point(16, 16), BackColor = Color.Transparent };
+            pnlIcon.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                using var b = new SolidBrush(PrimaryBlue);
+                e.Graphics.FillEllipse(b, 2, 2, 16, 16);
+                using var f = new Font("Segoe UI Bold", 9f);
+                using var wb = new SolidBrush(Color.White);
+                e.Graphics.DrawString("i", f, wb, new PointF(7, 1));
+            };
+            card.Controls.Add(pnlIcon);
+
+            var lblTitle = new Label { Text = "How to read this chart", Font = new Font("Segoe UI Bold", 9f), ForeColor = TextHeader, Location = new Point(42, 14), AutoSize = true };
+            card.Controls.Add(lblTitle);
+
+            var lblDesc = new Label
+            {
+                Text = "Each row represents a server. Colored blocks represent customer service activities. The width of each block indicates the duration of the activity. Click on any block to view detailed customer information.",
+                Font = new Font("Segoe UI", 8.5f),
+                ForeColor = TextMid,
+                Location = new Point(42, 34),
+                AutoSize = true
+            };
+            card.Controls.Add(lblDesc);
         }
 
         // ═══════════════════════════════════════════════════════════════════════
         //  LAYOUT ENGINE
         // ═══════════════════════════════════════════════════════════════════════
 
-        private void Relayout()
+        private void RelayoutSections()
         {
             if (_scroll == null) return;
-            int aw = Math.Max(600, _scroll.ClientSize.Width - 48);
+            int availW = Math.Max(700, _scroll.ClientSize.Width - 40);
 
-            _headerCard.Width  = aw;
-            _filterCard.Width  = aw;
-            _ganttWrapper.Width = aw;
-            _detailsCard.Width = aw;
-            _kpiPanel.Width    = aw;
-            _helpCard.Width    = aw;
+            _headerCard.Width = availW;
+            _filterCard.Width = availW;
+            _ganttWrapper.Width = availW;
+            _detailsCard.Width = availW;
+            _kpiWrapper.Width = availW;
+            _helpCard.Width = availW;
 
-            // Resize help card inline labels
-            foreach (Control c in _helpCard.Controls)
-                if (c is Label l && l.Location.X == 22) l.Width = aw - 40;
+            // Relayout KPI Cards horizontally across full width
+            int kpiCount = 6;
+            int gap = 12;
+            int cardW = (availW - (kpiCount - 1) * gap) / kpiCount;
+            cardW = Math.Max(130, cardW);
 
-            // KPI card widths
-            int ns = _result?.NumServers ?? 1;
-            int ganttH = Math.Max(380, AxisH + 24 + ns * (RowH + 16) + 24);
-            _ganttWrapper.Height = ganttH;
-
-            int cnt = _kpiPanel.Controls.Count;
-            if (cnt > 0)
+            for (int i = 0; i < kpiCount; i++)
             {
-                int perRow = Math.Max(1, Math.Min(cnt, aw / 172));
-                int w = Math.Max(150, (aw - (perRow - 1) * 12) / perRow);
-                foreach (Control c in _kpiPanel.Controls) if (c is MetricCard mc) mc.Width = w;
+                if (_kpiCards[i] != null)
+                {
+                    _kpiCards[i].Location = new Point(i * (cardW + gap), 0);
+                    _kpiCards[i].Width = cardW;
+                }
             }
+
+            int numServers = _result?.NumServers ?? 2;
+            _ganttWrapper.Height = Math.Max(320, AxisHeight + numServers * RowHeight + 30);
 
             _canvasPanel?.Invalidate();
             _serverColPanel?.Invalidate();
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        //  SERVER COLUMN PAINTER (pinned left)
+        //  SERVER COLUMN PAINTER (Pinned Left)
         // ═══════════════════════════════════════════════════════════════════════
 
         private void PaintServerColumn(object? sender, PaintEventArgs e)
@@ -550,14 +675,16 @@ namespace ImtiazQueueSimulator.Controls
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-            int panW = _serverColPanel.Width;
-            int panH = _serverColPanel.Height;
 
-            // Axis header placeholder
-            using (var hBrush = new SolidBrush(TrackBg))
-                g.FillRectangle(hBrush, 0, 0, panW, AxisH);
-            using (var pen = new Pen(Border, 1.2f))
-                g.DrawLine(pen, 0, AxisH - 1, panW, AxisH - 1);
+            int panW = _serverColPanel.Width;
+
+            // Axis Top Corner Title "Time"
+            using (var fontTime = new Font("Segoe UI Bold", 9f))
+            using (var brushTime = new SolidBrush(TextMid))
+                g.DrawString("Time", fontTime, brushTime, new PointF(16, 14));
+
+            using (var penLine = new Pen(BorderColor, 1.2f))
+                g.DrawLine(penLine, 0, AxisHeight, panW, AxisHeight);
 
             if (_result == null) return;
             int ns = Math.Max(1, _result.NumServers);
@@ -566,59 +693,51 @@ namespace ImtiazQueueSimulator.Controls
             {
                 if (_serverFilter > 0 && _serverFilter != s) continue;
 
-                int y = AxisH + (s - 1) * (RowH + 16) + 8;
-                var cardR = new Rectangle(10, y, panW - 16, RowH);
+                int rowY = AxisHeight + (s - 1) * RowHeight;
 
-                // Card bg
-                using (var path = RoundRect(cardR, 10))
-                {
-                    using var bg = new SolidBrush(White);
-                    g.FillPath(bg, path);
-                    using var pen = new Pen(Border, 1.2f);
-                    g.DrawPath(pen, path);
-                }
+                // Row Separator Line
+                using (var penSep = new Pen(BorderColor, 1f))
+                    g.DrawLine(penSep, 0, rowY + RowHeight, panW, rowY + RowHeight);
 
-                // Cashier name
-                using var fName = new Font("Segoe UI Bold", 10f);
-                using var bName = new SolidBrush(TextH);
-                g.DrawString($"Cashier {s:D2}", fName, bName, new PointF(cardR.X + 12, cardR.Y + 12));
+                // Cashier Name
+                using var fontName = new Font("Segoe UI Bold", 10f);
+                using var brushName = new SolidBrush(TextHeader);
+                g.DrawString($"Cashier {s:D2}", fontName, brushName, new PointF(16, rowY + 16));
 
-                // Utilization badge
+                // Green Dot Status Badge
+                using var dotBrush = new SolidBrush(ClrCompleted);
+                g.FillEllipse(dotBrush, 102, rowY + 22, 8, 8);
+
+                // Utilization Label
+                using var fontUtilLbl = new Font("Segoe UI", 7.5f);
+                using var brushUtilLbl = new SolidBrush(TextMuted);
+                g.DrawString("Utilization", fontUtilLbl, brushUtilLbl, new PointF(16, rowY + 38));
+
+                // Utilization % Badge Pill
                 double util = (_result.ServerUtilizations != null && _result.ServerUtilizations.Length >= s)
                     ? _result.ServerUtilizations[s - 1] * 100 : 0;
 
-                Color ug = util > 85 ? Color.FromArgb(254, 242, 242)
-                         : util > 65 ? Color.FromArgb(255, 251, 235)
-                         : Color.FromArgb(240, 253, 244);
-                Color uf = util > 85 ? Color.FromArgb(220, 38, 38)
-                         : util > 65 ? Color.FromArgb(217, 119, 6)
-                         : Color.FromArgb(22, 163, 74);
-
-                var badgeR = new Rectangle(cardR.X + 12, cardR.Y + 40, 130, 22);
-                using (var path = RoundRect(badgeR, 6))
+                var badgeR = new Rectangle(16, rowY + 54, 52, 20);
+                using (var path = RoundPath(badgeR, 5))
                 {
-                    using var bg = new SolidBrush(ug);
-                    g.FillPath(bg, path);
-                    using var pen = new Pen(uf, 1f);
-                    g.DrawPath(pen, path);
+                    using var bBg = new SolidBrush(Color.FromArgb(236, 253, 245));
+                    g.FillPath(bBg, path);
+                    using var bPen = new Pen(Color.FromArgb(167, 243, 208), 1f);
+                    g.DrawPath(bPen, path);
                 }
 
-                using var fBadge = new Font("Segoe UI Semibold", 8f);
-                using var bBadge = new SolidBrush(uf);
+                using var fontBadge = new Font("Segoe UI Bold", 8f);
+                using var brushBadge = new SolidBrush(ClrCompleted);
                 var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString($"Utilization {util:F0}%", fBadge, bBadge, badgeR, sf);
-
-                // Indicator dot (green/amber/red)
-                using var dotBrush = new SolidBrush(uf);
-                g.FillEllipse(dotBrush, cardR.Right - 22, cardR.Y + 12, 10, 10);
+                g.DrawString($"{util:F0}%", fontBadge, brushBadge, badgeR, sf);
             }
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        //  MAIN CANVAS PAINTER
+        //  MAIN TIMELINE CANVAS PAINTER
         // ═══════════════════════════════════════════════════════════════════════
 
-        private void PaintCanvas(object? sender, PaintEventArgs e)
+        private void PaintTimelineCanvas(object? sender, PaintEventArgs e)
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -630,15 +749,15 @@ namespace ImtiazQueueSimulator.Controls
             if (_result == null || _result.AllCustomers.Count == 0)
             {
                 using var ef = new Font("Segoe UI Semibold", 9.5f);
-                using var eb = new SolidBrush(TextL);
+                using var eb = new SolidBrush(TextMuted);
                 var esf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                 g.DrawString("ℹ  Run a simulation to populate the Gantt Timeline.", ef, eb, new Rectangle(0, 0, cW, cH), esf);
                 return;
             }
 
-            int ns     = Math.Max(1, _result.NumServers);
-            int tW     = (int)((cW - 20) * _zoomLevel);
-            tW = Math.Max(400, tW);
+            int ns = Math.Max(1, _result.NumServers);
+            int tW = (int)((cW - 40) * _zoomLevel);
+            tW = Math.Max(500, tW);
 
             double maxT = _result.AllCustomers
                 .Where(c => c.DepartureTime > 0)
@@ -647,57 +766,41 @@ namespace ImtiazQueueSimulator.Controls
                 .Max();
             if (maxT <= 0) maxT = Math.Max(1.0, _result.SimulationTime);
 
-            // ── A. Time Axis ──────────────────────────────────────────────────
-            using (var axBg = new SolidBrush(TrackBg))
-                g.FillRectangle(axBg, 0, 0, tW + 20, AxisH);
+            // ── A. Time Axis Header ───────────────────────────────────────────
+            using (var axPen = new Pen(BorderColor, 1.2f))
+                g.DrawLine(axPen, 0, AxisHeight, tW + 40, AxisHeight);
 
-            using (var axPen = new Pen(Border, 1.2f))
-                g.DrawLine(axPen, 0, AxisH - 1, tW + 20, AxisH - 1);
+            int tickCount = 8;
+            using var tickFont = new Font("Segoe UI Semibold", 8.5f);
+            using var tickBrush = new SolidBrush(TextMid);
+            using var gridPen = new Pen(GridPenColor, 1f);
 
-            // Dynamic tick count based on zoom
-            int ticks = Math.Max(4, (int)(10 * _zoomLevel));
-            using var tickFont  = new Font("Segoe UI Semibold", 8.5f);
-            using var tickBrush = new SolidBrush(TextM);
-            using var gridPen   = new Pen(GridLine, 1f) { DashStyle = DashStyle.Dash };
-            int totalRowH = ns * (RowH + 16) + 24;
-
-            for (int i = 0; i <= ticks; i++)
+            for (int i = 0; i <= tickCount; i++)
             {
-                float tx = (float)i / ticks * tW + 10;
-                double t = (double)i / ticks * maxT;
-                string ts = Customer.FormatTime(t);
+                float tx = 20 + (float)i / tickCount * tW;
+                double t = (double)i / tickCount * maxT;
+                string timeStr = Customer.FormatTime(t);
 
-                // grid line
-                g.DrawLine(gridPen, tx, AxisH, tx, AxisH + totalRowH);
+                // Grid line
+                g.DrawLine(gridPen, tx, AxisHeight, tx, AxisHeight + ns * RowHeight);
 
-                // tick label (90px wide prevents truncation)
-                g.DrawString(ts, tickFont, tickBrush,
-                    new RectangleF(tx - 45, 14, 90, 20),
-                    new StringFormat { Alignment = StringAlignment.Center });
+                // Tick label
+                var sf = new StringFormat { Alignment = StringAlignment.Center };
+                g.DrawString(timeStr, tickFont, tickBrush, new RectangleF(tx - 45, 14, 90, 20), sf);
             }
 
-            // ── B. Server Lanes & Customer Task Blocks ────────────────────────
-            var sfC = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
-            var sfL = new StringFormat { Alignment = StringAlignment.Near,   LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
-
+            // ── B. Server Rows & Customer Activity Blocks ─────────────────────
             for (int s = 1; s <= ns; s++)
             {
                 if (_serverFilter > 0 && _serverFilter != s) continue;
 
-                int laneY  = AxisH + (s - 1) * (RowH + 16) + 8;
-                int taskY  = laneY + (RowH - TaskH) / 2;
+                int rowY = AxisHeight + (s - 1) * RowHeight;
+                int taskY = rowY + (RowHeight - TaskHeight) / 2;
 
-                // Idle background strip
-                var trackR = new Rectangle(10, taskY, tW, TaskH);
-                using (var path = RoundRect(trackR, 8))
-                {
-                    using var ib = new SolidBrush(TrackBg);
-                    g.FillPath(ib, path);
-                    using var ip = new Pen(Border, 1f);
-                    g.DrawPath(ip, path);
-                }
+                // Row Separator Line
+                using (var penSep = new Pen(BorderColor, 1f))
+                    g.DrawLine(penSep, 0, rowY + RowHeight, tW + 40, rowY + RowHeight);
 
-                // Customer blocks
                 var custs = _result.AllCustomers
                     .Where(c => c.AssignedServer == s && (c.ServiceStartTime > 0 || c.DepartureTime > 0))
                     .OrderBy(c => c.ServiceStartTime)
@@ -709,188 +812,213 @@ namespace ImtiazQueueSimulator.Controls
                     double et = c.DepartureTime > st ? c.DepartureTime : Math.Min(maxT, st + c.ServiceTime);
                     if (et <= st) continue;
 
-                    float bx  = 10 + (float)(st / maxT * tW);
-                    float bw  = Math.Max(12f, (float)((et - st) / maxT * tW));
+                    float bx = 20 + (float)(st / maxT * tW);
+                    float bw = Math.Max(14f, (float)((et - st) / maxT * tW));
 
-                    // Color from palette (per customer ID, cycles through 8 colors)
-                    Color col = Palette[(c.Id - 1) % Palette.Length];
+                    // Block Color Palette Cycling
+                    Color blockColor = CustomerPalette[(c.Id - 1) % CustomerPalette.Length];
 
-                    var br = new RectangleF(bx, taskY, bw, TaskH);
+                    var blockR = new RectangleF(bx, taskY, bw, TaskHeight);
 
-                    bool isSel  = _selected == c;
-                    bool isHov  = _hovered  == c;
-                    bool isSrch = !string.IsNullOrEmpty(_search) &&
-                        (c.Id.ToString().Contains(_search) ||
-                         $"C{c.Id:D3}".IndexOf(_search, StringComparison.OrdinalIgnoreCase) >= 0);
+                    bool isSelected = _selected == c;
+                    bool isHovered = _hovered == c;
 
-                    // Soft glow for selected
-                    if (isSel)
+                    // Fill Block
+                    using (var path = RoundPath(Rectangle.Round(blockR), TaskRadius))
                     {
-                        var glow = new RectangleF(bx - 4, taskY - 4, bw + 8, TaskH + 8);
-                        using var gp = RoundRect(Rectangle.Round(glow), TaskR + 2);
-                        using var gb = new SolidBrush(Color.FromArgb(60, SelGold));
-                        g.FillPath(gb, gp);
+                        using var bBrush = new SolidBrush(blockColor);
+                        g.FillPath(bBrush, path);
+
+                        // Highlight border if selected or hovered
+                        if (isSelected)
+                        {
+                            using var selPen = new Pen(Color.FromArgb(250, 176, 5), 2.5f);
+                            g.DrawPath(selPen, path);
+                        }
+                        else if (isHovered)
+                        {
+                            using var hovPen = new Pen(Color.White, 2f);
+                            g.DrawPath(hovPen, path);
+                        }
                     }
 
-                    // Block fill
-                    using (var path = RoundRect(Rectangle.Round(br), TaskR))
+                    // Multi-Line Text inside Customer Block (matches target screenshot!)
+                    using var whiteBrush = new SolidBrush(Color.White);
+                    if (bw >= 110)
                     {
-                        using var fill = new LinearGradientBrush(
-                            Rectangle.Round(br),
-                            Color.FromArgb(235, col),
-                            Color.FromArgb(210, col),
-                            90f);
-                        g.FillPath(fill, path);
+                        // Full block text (Title, ID, Time range)
+                        using var fontTitle = new Font("Segoe UI Bold", 7.5f);
+                        using var fontSub = new Font("Segoe UI Semibold", 6.8f);
 
-                        // Border
-                        Color borderCol = isSel ? SelGold : isSrch ? SelGold : col;
-                        float borderW   = (isSel || isSrch) ? 2.5f : 1.2f;
-                        using var bp = new Pen(borderCol, borderW);
-                        g.DrawPath(bp, path);
+                        var sfNear = new StringFormat { Alignment = StringAlignment.Near, Trimming = StringTrimming.EllipsisCharacter };
+                        g.DrawString($"Customer {c.Id:D3}", fontTitle, whiteBrush, new RectangleF(bx + 6, taskY + 3, bw - 10, 14), sfNear);
+                        g.DrawString($"ID: C{c.Id:D3}", fontSub, whiteBrush, new RectangleF(bx + 6, taskY + 16, bw - 10, 12), sfNear);
+                        g.DrawString($"{Customer.FormatTime(st)} → {Customer.FormatTime(et)}", fontSub, whiteBrush, new RectangleF(bx + 6, taskY + 28, bw - 10, 12), sfNear);
                     }
-
-                    // Text — adaptive based on block width
-                    using var white = new SolidBrush(Color.White);
-                    if (bw >= 190)
+                    else if (bw >= 60)
                     {
-                        // Large: name + ID + time range (two lines)
-                        using var fL1 = new Font("Segoe UI Bold",      8.5f);
-                        using var fL2 = new Font("Segoe UI Semibold",  7.5f);
-                        g.DrawString($"Customer {c.Id:D3}", fL1, white, new RectangleF(bx + 8, taskY + 3,  bw - 16, 18), sfL);
-                        g.DrawString($"C{c.Id:D3}  •  {Customer.FormatTime(st)} → {Customer.FormatTime(et)}", fL2, white, new RectangleF(bx + 8, taskY + 22, bw - 16, 16), sfL);
-                    }
-                    else if (bw >= 100)
-                    {
-                        // Medium: C001 + time
-                        using var fM1 = new Font("Segoe UI Bold",      8f);
-                        using var fM2 = new Font("Segoe UI Semibold",  7f);
-                        g.DrawString($"C{c.Id:D3}", fM1, white, new RectangleF(bx + 6, taskY + 3,  bw - 12, 18), sfL);
-                        g.DrawString($"{Customer.FormatTime(st)} → {Customer.FormatTime(et)}", fM2, white, new RectangleF(bx + 6, taskY + 21, bw - 12, 16), sfL);
-                    }
-                    else if (bw >= 46)
-                    {
-                        // Small: just C001 centered
-                        using var fS = new Font("Segoe UI Bold", 8f);
-                        g.DrawString($"C{c.Id:D3}", fS, white, br, sfC);
+                        using var fontCompact = new Font("Segoe UI Bold", 7.5f);
+                        var sfCenter = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                        g.DrawString($"C{c.Id:D3}", fontCompact, whiteBrush, blockR, sfCenter);
                     }
                     else if (bw >= 24)
                     {
-                        // Tiny: just ID number
-                        using var fT = new Font("Segoe UI Bold", 7f);
-                        g.DrawString($"{c.Id}", fT, white, br, sfC);
+                        using var fontTiny = new Font("Segoe UI Bold", 7f);
+                        var sfCenter = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                        g.DrawString($"{c.Id}", fontTiny, whiteBrush, blockR, sfCenter);
                     }
-                    // else: tiny solid block — no text (spec compliant)
                 }
             }
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        //  EVENT TIMELINE MINI PAINTER (inside details card)
+        //  STEPPER LINE PAINTER (Center Sub-Card)
         // ═══════════════════════════════════════════════════════════════════════
 
-        private void PaintEventTimeline(object? sender, PaintEventArgs e)
+        private void PaintStepperLine(object? sender, PaintEventArgs e)
         {
-            if (_selected == null) return;
-            var g  = e.Graphics;
-            var c  = _selected;
-            int w  = _detEventTimeline.Width;
-            int h  = _detEventTimeline.Height;
+            var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+            int w = _stepperPanel.Width;
 
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-
-            var events = new (string Label, double Time, Color Clr)[]
+            var nodes = new (string Name, string Time, Color Clr)[]
             {
-                ("Arrival",       c.ArrivalTime,       Palette[1]),
-                ("Queue Entry",   c.QueueEntryTime,    Palette[3]),
-                ("Service Start", c.ServiceStartTime,  Palette[0]),
-                ("Departure",     c.DepartureTime,     Palette[4])
+                ("Arrival",       _lblArrVal.Text,      ClrWaiting),
+                ("Queue Entry",   _lblQVal.Text,        ClrWaiting),
+                ("Service Start", _lblSvcStartVal.Text, PrimaryBlue),
+                ("Departure",     _lblDepVal.Text,      ClrCompleted)
             };
 
-            double t0 = events.Min(x => x.Time);
-            double t1 = events.Max(x => x.Time);
-            if (t1 <= t0) t1 = t0 + 0.01;
+            int startX = 40;
+            int endX = w - 40;
+            int step = (endX - startX) / (nodes.Length - 1);
+            int lineY = 24;
 
-            int step = Math.Max(1, (w - 40) / (events.Length - 1));
-            int midY = h / 2 - 4;
+            // Stepper Base Line
+            using (var pLine = new Pen(BorderColor, 2f))
+                g.DrawLine(pLine, startX, lineY, endX, lineY);
 
-            // Connecting line
-            int x0 = 20, xN = 20 + step * (events.Length - 1);
-            using var lp = new Pen(Border, 2f);
-            g.DrawLine(lp, x0, midY, xN, midY);
-
-            for (int i = 0; i < events.Length; i++)
+            for (int i = 0; i < nodes.Length; i++)
             {
-                int ex = 20 + i * step;
-                var (label, time, clr) = events[i];
+                int nx = startX + i * step;
+                var (name, time, clr) = nodes[i];
 
-                // dot
-                using var db = new SolidBrush(clr);
-                g.FillEllipse(db, ex - 7, midY - 7, 14, 14);
-                using var dp = new Pen(White, 2f);
-                g.DrawEllipse(dp, ex - 7, midY - 7, 14, 14);
+                // Node Circle Dot
+                using (var bDot = new SolidBrush(clr))
+                    g.FillEllipse(bDot, nx - 6, lineY - 6, 12, 12);
+                using (var pDot = new Pen(Color.White, 2f))
+                    g.DrawEllipse(pDot, nx - 6, lineY - 6, 12, 12);
 
-                // label above
-                using var lf = new Font("Segoe UI Semibold", 7.5f);
-                using var lb = new SolidBrush(TextM);
+                // Labels below node
+                using var fontName = new Font("Segoe UI Semibold", 7.5f);
+                using var brushName = new SolidBrush(TextMid);
                 var sf = new StringFormat { Alignment = StringAlignment.Center };
-                g.DrawString(label, lf, lb, new RectangleF(ex - 45, midY - 30, 90, 16), sf);
+                g.DrawString(name, fontName, brushName, new RectangleF(nx - 45, lineY + 10, 90, 14), sf);
 
-                // time below
-                using var tf = new Font("Segoe UI", 7f);
-                using var tb = new SolidBrush(TextL);
-                g.DrawString(Customer.FormatTime(time), tf, tb, new RectangleF(ex - 45, midY + 12, 90, 14), sf);
+                using var fontTime = new Font("Segoe UI", 7f);
+                using var brushTime = new SolidBrush(TextMuted);
+                g.DrawString(time, fontTime, brushTime, new RectangleF(nx - 45, lineY + 24, 90, 14), sf);
             }
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        //  MOUSE INTERACTION
+        //  EVENT TIMELINE FEED PAINTER (Right Sub-Card)
+        // ═══════════════════════════════════════════════════════════════════════
+
+        private void PaintEventTimelineList(object? sender, PaintEventArgs e)
+        {
+            var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            var events = new (string Name, string Time, Color Color)[]
+            {
+                ("Customer Arrived",   _lblArrVal.Text,      ClrWaiting),
+                ("Joined Queue",       _lblQVal.Text,        ClrWaiting),
+                ("Start Service",      _lblSvcStartVal.Text, PrimaryBlue),
+                ("Service Completed",  _lblDepVal.Text,      ClrCompleted),
+                ("Customer Departed",  _lblDepVal.Text,      ClrCompleted)
+            };
+
+            int ey = 8;
+            int lineX = 14;
+
+            for (int i = 0; i < events.Length; i++)
+            {
+                var (name, time, color) = events[i];
+
+                // Vertical Connector Line
+                if (i < events.Length - 1)
+                {
+                    using var pLine = new Pen(BorderColor, 1.5f);
+                    g.DrawLine(pLine, lineX, ey + 6, lineX, ey + 30);
+                }
+
+                // Event Bullet Dot
+                using (var bDot = new SolidBrush(color))
+                    g.FillEllipse(bDot, lineX - 4, ey + 2, 8, 8);
+
+                // Event Title
+                using var fontName = new Font("Segoe UI Semibold", 8f);
+                using var brushName = new SolidBrush(TextHeader);
+                g.DrawString(name, fontName, brushName, new PointF(lineX + 14, ey - 1));
+
+                // Timestamp on Far Right
+                using var fontTime = new Font("Segoe UI", 7.5f);
+                using var brushTime = new SolidBrush(TextMuted);
+                var sfRight = new StringFormat { Alignment = StringAlignment.Far };
+                g.DrawString(time, fontTime, brushTime, new RectangleF(_eventTimelineList.Width - 75, ey - 1, 70, 16), sfRight);
+
+                ey += 30;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        //  MOUSE INTERACTION & CLICK HANDLERS
         // ═══════════════════════════════════════════════════════════════════════
 
         private void Canvas_MouseMove(object? sender, MouseEventArgs e)
         {
             if (_result == null) return;
-            var c = HitTest(e.X, e.Y);
-            if (c != _hovered)
+            var hit = HitTestCustomerBlock(e.X, e.Y);
+            if (hit != _hovered)
             {
-                _hovered = c;
-                _canvasPanel.Cursor = c != null ? Cursors.Hand : Cursors.Default;
+                _hovered = hit;
+                _canvasPanel.Cursor = hit != null ? Cursors.Hand : Cursors.Default;
                 _canvasPanel.Invalidate();
                 _tt.Hide(_canvasPanel);
 
-                if (c != null)
+                if (hit != null)
                 {
-                    string tip =
-                        $"👤 {c.Name}  (C{c.Id:D3})\n" +
-                        $"🖥  Cashier {c.AssignedServer:D2}\n" +
-                        $"⏱  Arrival:       {Customer.FormatTime(c.ArrivalTime)}\n" +
-                        $"📥  Queue Entry:   {Customer.FormatTime(c.QueueEntryTime)}\n" +
-                        $"⚡  Service Start: {Customer.FormatTime(c.ServiceStartTime)}\n" +
-                        $"🏁  Departure:     {Customer.FormatTime(c.DepartureTime)}\n" +
-                        $"⏳  Wait:          {Customer.FormatDuration(c.WaitingTime)}\n" +
-                        $"💳  Service:       {Customer.FormatDuration(c.ServiceTime)}\n" +
-                        $"⏱  System Time:   {Customer.FormatDuration(c.TimeInSystem)}\n\n" +
-                        "👉 Click to pin details panel";
-                    _tt.Show(tip, _canvasPanel, e.X + 16, e.Y + 16, 5000);
+                    string tooltip =
+                        $"👤 {hit.Name}  (C{hit.Id:D3})\n" +
+                        $"🖥  Cashier {hit.AssignedServer:D2}\n" +
+                        $"⏱  Arrival:       {Customer.FormatTime(hit.ArrivalTime)}\n" +
+                        $"📥  Queue Entry:   {Customer.FormatTime(hit.QueueEntryTime)}\n" +
+                        $"⚡  Service Start: {Customer.FormatTime(hit.ServiceStartTime)}\n" +
+                        $"🏁  Departure:     {Customer.FormatTime(hit.DepartureTime)}\n" +
+                        $"⏳  Wait Time:     {Customer.FormatDuration(hit.WaitingTime)}\n" +
+                        $"💳  Service Time:  {Customer.FormatDuration(hit.ServiceTime)}\n" +
+                        $"⏱  System Time:   {Customer.FormatDuration(hit.TimeInSystem)}\n\n" +
+                        "👉 Click to populate Details Panel below";
+                    _tt.Show(tooltip, _canvasPanel, e.X + 16, e.Y + 16, 5000);
                 }
             }
         }
 
         private void Canvas_Click(object? sender, MouseEventArgs e)
         {
-            var c = HitTest(e.X, e.Y);
-            if (c == null) return;
-            _selected = c;
+            var hit = HitTestCustomerBlock(e.X, e.Y);
+            if (hit == null) return;
+            _selected = hit;
             _canvasPanel.Invalidate();
-            PopulateDetails(c);
+            UpdateDetailsPanel(hit);
         }
 
-        private Customer? HitTest(int mx, int my)
+        private Customer? HitTestCustomerBlock(int mx, int my)
         {
             if (_result == null) return null;
 
-            int ns  = Math.Max(1, _result.NumServers);
-            int tW  = (int)((_canvasPanel.Width - 20) * _zoomLevel);
-            tW = Math.Max(400, tW);
+            int ns = Math.Max(1, _result.NumServers);
+            int tW = (int)((_canvasPanel.Width - 40) * _zoomLevel);
+            tW = Math.Max(500, tW);
 
             double maxT = _result.AllCustomers
                 .Where(c => c.DepartureTime > 0)
@@ -902,12 +1030,12 @@ namespace ImtiazQueueSimulator.Controls
             for (int s = 1; s <= ns; s++)
             {
                 if (_serverFilter > 0 && _serverFilter != s) continue;
-                int laneY = AxisH + (s - 1) * (RowH + 16) + 8;
-                int taskY = laneY + (RowH - TaskH) / 2;
+                int rowY = AxisHeight + (s - 1) * RowHeight;
+                int taskY = rowY + (RowHeight - TaskHeight) / 2;
 
-                if (my < taskY || my > taskY + TaskH) continue;
+                if (my < taskY || my > taskY + TaskHeight) continue;
 
-                double tAtMouse = (mx - 10.0) / tW * maxT;
+                double tAtMouse = (mx - 20.0) / tW * maxT;
 
                 var hit = _result.AllCustomers.FirstOrDefault(c =>
                     c.AssignedServer == s &&
@@ -919,151 +1047,171 @@ namespace ImtiazQueueSimulator.Controls
             return null;
         }
 
-        private void PopulateDetails(Customer c)
+        private void UpdateDetailsPanel(Customer c)
         {
-            // Show grid, hide placeholder
-            var ph   = _detailsCard.Controls["ph"];
-            var grid = _detailsCard.Controls["detGrid"];
-            if (ph != null)   ph.Visible   = false;
-            if (grid != null) grid.Visible = true;
+            _lblDetTitle.Text = $"Customer {c.Id:D3}";
+            _lblDetId.Text = $"ID: C{c.Id:D3}";
+            _lblDetServerVal.Text = $"Cashier {c.AssignedServer:D2}";
+            _lblDetStatusVal.Text = c.Status;
+            _pnlDetColorBox.BackColor = CustomerPalette[(c.Id - 1) % CustomerPalette.Length];
 
-            _detCustName.Text     = c.Name;
-            _detCustId.Text       = $"C{c.Id:D3}";
-            _detServer.Text       = $"Cashier {c.AssignedServer:D2}";
-            _detArrival.Text      = Customer.FormatTime(c.ArrivalTime);
-            _detQueue.Text        = Customer.FormatTime(c.QueueEntryTime);
-            _detServiceStart.Text = Customer.FormatTime(c.ServiceStartTime);
-            _detDeparture.Text    = Customer.FormatTime(c.DepartureTime);
-            _detWait.Text         = Customer.FormatDuration(c.WaitingTime);
-            _detService.Text      = Customer.FormatDuration(c.ServiceTime);
-            _detSystem.Text       = Customer.FormatDuration(c.TimeInSystem);
-            _detStatus.Text       = c.Status;
-            _detEventTimeline.Invalidate();
+            _lblArrVal.Text = Customer.FormatTime(c.ArrivalTime);
+            _lblQVal.Text = Customer.FormatTime(c.QueueEntryTime);
+            _lblSvcStartVal.Text = Customer.FormatTime(c.ServiceStartTime);
+            _lblDepVal.Text = Customer.FormatTime(c.DepartureTime);
+            _lblWaitVal.Text = Customer.FormatTime(c.WaitingTime);
+            _lblSvcTimeVal.Text = Customer.FormatTime(c.ServiceTime);
+            _lblSysTimeVal.Text = Customer.FormatTime(c.TimeInSystem);
+            _lblAssignedServerVal.Text = $"Cashier {c.AssignedServer:D2}";
+
+            _stepperPanel.Invalidate();
+            _eventTimelineList.Invalidate();
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        //  ACTIONS
+        //  TOOLBAR ACTIONS
         // ═══════════════════════════════════════════════════════════════════════
 
-        private void Zoom(float f) { _zoomLevel = Math.Max(0.4f, Math.Min(5f, _zoomLevel * f)); _canvasPanel?.Invalidate(); }
-        private void ResetZoom() { _zoomLevel = 1f; _canvasPanel?.Invalidate(); }
-        private void ResetAll()
+        private void ChangeZoom(float factor) { _zoomLevel = Math.Max(0.4f, Math.Min(4f, _zoomLevel * factor)); _canvasPanel?.Invalidate(); }
+        private void ResetZoomLevel() { _zoomLevel = 1.0f; _canvasPanel?.Invalidate(); }
+        private void ResetAllFilters()
         {
-            _zoomLevel = 1f; _search = ""; _serverFilter = 0; _selected = null; _hovered = null;
+            _zoomLevel = 1.0f; _search = ""; _serverFilter = 0; _selected = null; _hovered = null;
             if (_cmbServer != null) _cmbServer.SelectedIndex = 0;
-            if (_txtSearch != null) { _txtSearch.Text = "Customer ID…"; _txtSearch.ForeColor = TextL; }
+            if (_txtSearch != null) { _txtSearch.Text = "Search Customer by ID or Name..."; _txtSearch.ForeColor = TextMuted; }
             _canvasPanel?.Invalidate();
             _serverColPanel?.Invalidate();
         }
 
-        private void ExportPng()
+        private void ExportToPngImage()
         {
             try
             {
-                using var sfd = new SaveFileDialog { Filter = "PNG Image|*.png", FileName = $"Gantt_{DateTime.Now:yyyyMMdd_HHmmss}.png" };
+                using var sfd = new SaveFileDialog { Filter = "PNG Image|*.png", FileName = $"GanttDashboard_{DateTime.Now:yyyyMMdd_HHmmss}.png" };
                 if (sfd.ShowDialog() != DialogResult.OK) return;
-                using var bmp = new Bitmap(_canvasPanel.Width, _canvasPanel.Height);
-                _canvasPanel.DrawToBitmap(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height));
+                using var bmp = new Bitmap(_scroll.Width, _scroll.Height);
+                _scroll.DrawToBitmap(bmp, new Rectangle(0, 0, bmp.Width, bmp.Height));
                 bmp.Save(sfd.FileName, ImageFormat.Png);
-                MessageBox.Show("Gantt chart exported as PNG.", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Gantt Monitoring Dashboard exported successfully as high-resolution PNG.", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex) { MessageBox.Show(ex.Message, "Export Failed"); }
         }
 
-        private void FullScreen()
+        private void OpenFullScreenModal()
         {
-            var form = new Form
+            var modal = new Form
             {
-                Text = "Gantt Monitoring Dashboard — Full Screen",
+                Text = "Server Activity Timeline (Gantt Monitoring Dashboard)",
                 WindowState = FormWindowState.Maximized,
                 StartPosition = FormStartPosition.CenterScreen,
-                BackColor = Bg
+                BackColor = BgColor
             };
             var ctrl = new EnterpriseGanttControl { Dock = DockStyle.Fill };
             if (_result != null) ctrl.LoadResults(_result);
-            form.Controls.Add(ctrl);
-            form.ShowDialog();
+            modal.Controls.Add(ctrl);
+            modal.ShowDialog();
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        //  PUBLIC API
+        //  PUBLIC API DATA BINDING
         // ═══════════════════════════════════════════════════════════════════════
 
         public void LoadResults(SimulationResult result)
         {
-            _result   = result;
+            _result = result;
             _selected = null;
-            _hovered  = null;
+            _hovered = null;
 
             if (result != null)
             {
-                _kSimTime.Value  = Customer.FormatTime(result.SimulationTime);
-                _kServers.Value  = $"{result.NumServers}";
-                _kUtil.Value     = double.IsNaN(result.SimRho) ? "--" : $"{result.SimRho * 100:F1}%";
-                _kServed.Value   = $"{result.CustomersServed}";
-                _kAvgWait.Value  = double.IsNaN(result.SimWq) ? "--" : $"{result.SimWq * 60:F1} m";
-                _kAvgSvc.Value   = double.IsNaN(result.SimW)  ? "--" : $"{result.SimW  * 60:F1} m";
+                _lblTimeRange.Text = $"📅 00:00:00  →  {Customer.FormatTime(result.SimulationTime)}";
 
-                int pq = result.QueueLengthOverTime?.Count > 0
-                    ? result.QueueLengthOverTime.Max(x => x.QueueLength) : 0;
-                _kPeakQ.Value = $"{pq}";
+                // Update 6 Executive KPI Metric Values
+                if (_kpiValLabels[0] != null) _kpiValLabels[0].Text = Customer.FormatTime(result.SimulationTime);
+                if (_kpiValLabels[1] != null) _kpiValLabels[1].Text = $"{result.NumServers}";
+                if (_kpiValLabels[2] != null) _kpiValLabels[2].Text = double.IsNaN(result.SimRho) ? "0.0%" : $"{result.SimRho * 100:F1}%";
+                if (_kpiValLabels[3] != null) _kpiValLabels[3].Text = $"{result.CustomersServed}";
 
-                double idle = 0;
+                double totalIdle = 0;
                 if (result.ServerUtilizations != null)
                     foreach (var u in result.ServerUtilizations)
-                        idle += Math.Max(0, (1.0 - u) * result.SimulationTime);
-                _kIdle.Value = Customer.FormatDuration(idle);
+                        totalIdle += Math.Max(0, (1.0 - u) * result.SimulationTime);
 
-                // Rebuild server filter dropdown
+                if (_kpiValLabels[4] != null) _kpiValLabels[4].Text = Customer.FormatTime(totalIdle);
+                if (_kpiValLabels[5] != null) _kpiValLabels[5].Text = double.IsNaN(result.SimWq) ? "00:00:00" : Customer.FormatTime(result.SimWq);
+
+                // Populate Dropdown
                 _cmbServer.Items.Clear();
                 _cmbServer.Items.Add("All Servers");
                 for (int s = 1; s <= result.NumServers; s++)
                     _cmbServer.Items.Add($"Cashier {s:D2}");
                 _cmbServer.SelectedIndex = 0;
                 _serverFilter = 0;
+
+                // Select first customer if available for details panel preview
+                if (result.AllCustomers.Count > 0)
+                {
+                    _selected = result.AllCustomers[0];
+                    UpdateDetailsPanel(_selected);
+                }
             }
 
-            Relayout();
+            RelayoutSections();
             _canvasPanel?.Invalidate();
             _serverColPanel?.Invalidate();
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        //  HELPERS
+        //  UI HELPER FACTORIES
         // ═══════════════════════════════════════════════════════════════════════
 
-        private Panel Card(int y, int h)
+        private Panel CreateCardPanel(int y, int height)
         {
             var p = new Panel
             {
-                Location  = new Point(0, y),
-                Height    = h,
-                Width     = Math.Max(400, ClientSize.Width - 48),
-                Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-                BackColor = White
+                Location = new Point(0, y),
+                Height = height,
+                Width = Math.Max(500, ClientSize.Width - 40),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                BackColor = WhiteBg
             };
             p.Paint += (s, e) =>
             {
-                var g = e.Graphics;
-                g.SmoothingMode = SmoothingMode.AntiAlias;
+                var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
                 var r = new Rectangle(1, 1, p.Width - 3, p.Height - 3);
 
-                // Shadow
-                using var shadow = new SolidBrush(Color.FromArgb(12, 0, 0, 0));
-                using var sp = RoundRect(new Rectangle(r.X + 2, r.Y + 3, r.Width, r.Height), 16);
-                g.FillPath(shadow, sp);
-
-                // Card
-                using var bg = new SolidBrush(White);
-                using var cp = RoundRect(r, 16);
-                g.FillPath(bg, cp);
-                using var bp = new Pen(Border, 1.2f);
-                g.DrawPath(bp, cp);
+                // Soft Card Shadow & Surface
+                using var bg = new SolidBrush(WhiteBg);
+                using var path = RoundPath(r, 14);
+                g.FillPath(bg, path);
+                using var borderPen = new Pen(BorderColor, 1.2f);
+                g.DrawPath(borderPen, path);
             };
             return p;
         }
 
-        private static GraphicsPath RoundRect(Rectangle r, int rad)
+        private Panel CreateSubCardPanel()
+        {
+            var p = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(6),
+                BackColor = TrackBgColor
+            };
+            p.Paint += (s, e) =>
+            {
+                var g = e.Graphics; g.SmoothingMode = SmoothingMode.AntiAlias;
+                var r = new Rectangle(1, 1, p.Width - 3, p.Height - 3);
+                using var bg = new SolidBrush(TrackBgColor);
+                using var path = RoundPath(r, 10);
+                g.FillPath(bg, path);
+                using var borderPen = new Pen(BorderColor, 1f);
+                g.DrawPath(borderPen, path);
+            };
+            return p;
+        }
+
+        private static GraphicsPath RoundPath(Rectangle r, int rad)
         {
             var p = new GraphicsPath();
             int d = rad * 2;
