@@ -6,193 +6,470 @@ using System.Windows.Forms;
 namespace ImtiazQueueSimulator.Forms
 {
     /// <summary>
-    /// Custom modern warning modal displayed when simulating an unstable queueing system.
-    /// Fully styled according to the Imtiaz Queue Analyzer branding guidelines.
+    /// Custom enterprise-grade warning modal displayed when simulating an unstable queueing system.
+    /// Redesigned with premium flat aesthetics, progress-bar utilization indicator, and precise alignments.
     /// </summary>
     public class StabilityWarningForm : Form
     {
         public StabilityWarningForm(double lambda, double mu, int n, double rho)
         {
+            // Form setup
             Text = "Stability Warning";
-            FormBorderStyle = FormBorderStyle.FixedDialog;
+            FormBorderStyle = FormBorderStyle.None; // borderless for 14px rounded corners
             MaximizeBox = false;
             MinimizeBox = false;
             ShowIcon = false;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(480, 420);
-            BackColor = Color.FromArgb(244, 246, 250);
+            Size = new Size(640, 560);
+            BackColor = Color.White;
 
-            // Header Panel
+            // ── 1. Header (64px height) ──
             var headerPanel = new Panel
             {
-                BackColor = Color.FromArgb(254, 242, 242), // Red Tint
-                Dock = DockStyle.Top,
-                Height = 62,
-                Padding = new Padding(16, 0, 16, 0)
+                BackColor = Color.White,
+                Size = new Size(640, 64),
+                Location = new Point(0, 0)
             };
-            headerPanel.Paint += (s, e) =>
+            
+            var warningIcon = new Label
             {
-                using var pen = new Pen(Color.FromArgb(254, 202, 202), 1f);
-                e.Graphics.DrawLine(pen, 0, headerPanel.Height - 1, headerPanel.Width, headerPanel.Height - 1);
-            };
-
-            var warningTitle = new Label
-            {
-                Text = "⚠ SYSTEM INSTABILITY WARNING",
-                Font = new Font("Segoe UI", 11.5f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(220, 38, 38), // Crimson Warning
-                AutoSize = true,
-                Location = new Point(16, 18),
+                Text = "⚠",
+                Font = new Font("Segoe UI", 18f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(249, 115, 22), // Orange Warning
+                Location = new Point(24, 14),
+                Size = new Size(30, 36),
+                TextAlign = ContentAlignment.MiddleLeft,
                 BackColor = Color.Transparent
             };
-            headerPanel.Controls.Add(warningTitle);
+            headerPanel.Controls.Add(warningIcon);
+
+            var titleLbl = new Label
+            {
+                Text = "System Instability Warning",
+                Font = new Font("Segoe UI Semibold", 14f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(30, 41, 59), // Dark Gray slate-800
+                Location = new Point(56, 16),
+                Size = new Size(350, 32),
+                TextAlign = ContentAlignment.MiddleLeft,
+                BackColor = Color.Transparent
+            };
+            headerPanel.Controls.Add(titleLbl);
+
+            var btnClose = new Label
+            {
+                Text = "✕",
+                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(148, 163, 184), // slate-400
+                Location = new Point(590, 18),
+                Size = new Size(26, 26),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Cursor = Cursors.Hand,
+                BackColor = Color.Transparent
+            };
+            btnClose.Click += (s, e) => { DialogResult = DialogResult.No; Close(); };
+            btnClose.MouseEnter += (s, e) => btnClose.ForeColor = Color.FromArgb(239, 68, 68); // Red hover
+            btnClose.MouseLeave += (s, e) => btnClose.ForeColor = Color.FromArgb(148, 163, 184);
+            headerPanel.Controls.Add(btnClose);
+
+            // Light divider below header
+            headerPanel.Paint += (s, e) =>
+            {
+                using var pen = new Pen(Color.FromArgb(241, 245, 249), 1f); // slate-100
+                e.Graphics.DrawLine(pen, 0, headerPanel.Height - 1, headerPanel.Width, headerPanel.Height - 1);
+            };
             Controls.Add(headerPanel);
 
-            // Content Panel (Flow Layout for spacing auto-wrap support)
-            var contentFlow = new FlowLayoutPanel
+            // ── 2. Content Layout (Vertical stacking) ──
+            var mainFlow = new FlowLayoutPanel
             {
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false,
-                AutoSize = true,
-                Location = new Point(24, 78),
-                Width = 420,
+                Size = new Size(640, 416),
+                Location = new Point(0, 64),
                 BackColor = Color.Transparent,
-                Padding = new Padding(0)
+                Padding = new Padding(24, 16, 24, 0)
             };
-            Controls.Add(contentFlow);
+            Controls.Add(mainFlow);
 
-            contentFlow.Controls.Add(CreateTextLabel("The configured queuing parameters result in a theoretically unstable system (offered load ρ ≥ 100%):"));
+            // Warning Banner
+            var banner = new RoundedPanel
+            {
+                BackColor = Color.FromArgb(255, 244, 229), // #FFF4E5 light orange
+                BorderColor = Color.FromArgb(254, 202, 202), // light orange border
+                Size = new Size(592, 80),
+                Margin = new Padding(0, 0, 0, 16)
+            };
 
-            // Card Panel for Metrics
-            var paramTable = new TableLayoutPanel
+            var bannerIcon = new Label
+            {
+                Text = "⚠",
+                Font = new Font("Segoe UI", 16f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(249, 115, 22),
+                Location = new Point(16, 12),
+                Size = new Size(28, 28),
+                BackColor = Color.Transparent
+            };
+            banner.Controls.Add(bannerIcon);
+
+            var bannerTitle = new Label
+            {
+                Text = "System May Become Unstable",
+                Font = new Font("Segoe UI Semibold", 10.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(194, 65, 12), // Dark orange
+                Location = new Point(48, 14),
+                Size = new Size(300, 20),
+                BackColor = Color.Transparent
+            };
+            banner.Controls.Add(bannerTitle);
+
+            var bannerDesc = new Label
+            {
+                Text = "The configured parameters create an unstable queueing system because the offered load exceeds available service capacity.",
+                Font = new Font("Segoe UI", 9.5f),
+                ForeColor = Color.FromArgb(124, 45, 18),
+                Location = new Point(48, 36),
+                Size = new Size(528, 38),
+                BackColor = Color.Transparent
+            };
+            banner.Controls.Add(bannerDesc);
+            mainFlow.Controls.Add(banner);
+
+            // Parameter Summary Card
+            var paramCard = new RoundedPanel
+            {
+                BackColor = Color.White,
+                BorderColor = Color.FromArgb(226, 232, 240), // slate-200
+                Size = new Size(592, 172),
+                Margin = new Padding(0, 0, 0, 16)
+            };
+
+            var tbl = new TableLayoutPanel
             {
                 ColumnCount = 2,
                 RowCount = 5,
-                AutoSize = true,
-                Width = 412,
-                Margin = new Padding(0, 12, 0, 12),
-                BackColor = Color.White,
-                Padding = new Padding(12),
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.None
-            };
-            paramTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62f));
-            paramTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38f));
-
-            paramTable.Paint += (s, e) =>
-            {
-                var r = new Rectangle(0, 0, paramTable.Width - 1, paramTable.Height - 1);
-                using var path = RoundPath(r, 8);
-                using var pen = new Pen(Color.FromArgb(226, 232, 240), 1f);
-                e.Graphics.DrawPath(pen, path);
-            };
-
-            AddRow(paramTable, "Arrival Rate (λ):", $"{lambda:F2} cust/hr", 0);
-            AddRow(paramTable, "Service Rate per Server (μ):", $"{mu:F2} cust/hr", 1);
-            AddRow(paramTable, "Active Servers (N):", $"{n}", 2);
-            AddRow(paramTable, "Total Service Capacity (N × μ):", $"{n * mu:F2} cust/hr", 3);
-            AddRow(paramTable, "System Utilization (ρ):", $"{rho * 100:F2}%", 4, true);
-
-            contentFlow.Controls.Add(paramTable);
-
-            var explanationLbl = new Label
-            {
-                Text = "Under steady-state conditions, the queue will grow without bound. Do you wish to continue and run the simulation anyway? (Useful for demonstrating transient queue growth)",
-                Font = new Font("Segoe UI", 9.5f),
-                ForeColor = Color.FromArgb(71, 85, 105),
-                AutoSize = true,
-                MaximumSize = new Size(412, 0),
-                Margin = new Padding(0, 0, 0, 16),
+                Location = new Point(16, 12),
+                Size = new Size(560, 120),
                 BackColor = Color.Transparent
             };
-            contentFlow.Controls.Add(explanationLbl);
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
-            // Action Buttons Panel
+            AddParameterRow(tbl, "Arrival Rate", $"{lambda:F2} cust/hr", 0);
+            AddParameterRow(tbl, "Service Rate", $"{mu:F2} cust/hr", 1);
+            AddParameterRow(tbl, "Servers", $"{n}", 2);
+            AddParameterRow(tbl, "Capacity", $"{n * mu:F2} cust/hr", 3);
+            AddParameterRow(tbl, "Utilization", $"{rho * 100:F2}%", 4, true);
+            paramCard.Controls.Add(tbl);
+
+            // Add progress bar underneath
+            var progressBar = new CustomProgressBar(rho)
+            {
+                Location = new Point(16, 144),
+                Size = new Size(560, 8)
+            };
+            paramCard.Controls.Add(progressBar);
+            mainFlow.Controls.Add(paramCard);
+
+            // Explanation Card
+            var infoCard = new RoundedPanel
+            {
+                BackColor = Color.FromArgb(239, 246, 255), // light blue
+                BorderColor = Color.FromArgb(219, 234, 254),
+                Size = new Size(592, 92),
+                Margin = new Padding(0, 0, 0, 16)
+            };
+
+            var infoIcon = new Label
+            {
+                Text = "ℹ",
+                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(29, 78, 216),
+                Location = new Point(16, 12),
+                Size = new Size(24, 24),
+                BackColor = Color.Transparent
+            };
+            infoCard.Controls.Add(infoIcon);
+
+            var infoText = new Label
+            {
+                Text = "• This system is theoretically unstable.\n• Customers may continue accumulating because demand exceeds service capacity.\n• The simulation can still be executed to observe transient queue growth.",
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = Color.FromArgb(30, 41, 59),
+                Location = new Point(48, 14),
+                Size = new Size(528, 68),
+                BackColor = Color.Transparent
+            };
+            infoCard.Controls.Add(infoText);
+            mainFlow.Controls.Add(infoCard);
+
+            // ── 3. Bottom Button Panel (80px height) ──
             var buttonsPanel = new Panel
             {
-                Dock = DockStyle.Bottom,
-                Height = 60,
+                Size = new Size(640, 80),
+                Location = new Point(0, 480),
                 BackColor = Color.Transparent
             };
-            Controls.Add(buttonsPanel);
-
-            var btnCancel = new Button
+            
+            // Cancel button left-aligned
+            var btnCancel = new RoundedButton
             {
-                Text = "NO / Cancel",
+                Text = "Cancel",
                 DialogResult = DialogResult.No,
-                Size = new Size(130, 36),
-                Location = new Point(164, 12),
-                FlatStyle = FlatStyle.Flat,
+                Size = new Size(160, 48),
+                Location = new Point(24, 16),
                 BackColor = Color.White,
-                ForeColor = Color.FromArgb(71, 85, 105),
-                Font = new Font("Segoe UI Semibold", 9.5f),
-                Cursor = Cursors.Hand
+                BorderColor = Color.FromArgb(203, 213, 225), // slate-300
+                ForeColor = Color.FromArgb(71, 85, 105), // slate-600
+                Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold)
             };
-            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(203, 213, 225);
             buttonsPanel.Controls.Add(btnCancel);
 
-            var btnContinue = new Button
+            // Run Anyway button right-aligned
+            var btnRun = new RoundedButton
             {
-                Text = "YES / Continue",
+                Text = "Run Anyway",
                 DialogResult = DialogResult.Yes,
-                Size = new Size(130, 36),
-                Location = new Point(306, 12),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(220, 38, 38), // Warning Red Background
+                Size = new Size(160, 48),
+                Location = new Point(456, 16),
+                BackColor = Color.FromArgb(249, 115, 22), // Orange Accent
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold),
-                Cursor = Cursors.Hand
+                Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold)
             };
-            btnContinue.FlatAppearance.BorderSize = 0;
-            buttonsPanel.Controls.Add(btnContinue);
+            buttonsPanel.Controls.Add(btnRun);
+            Controls.Add(buttonsPanel);
 
-            // Adjust height dynamically based on layout contents
-            contentFlow.PerformLayout();
-            Height = headerPanel.Height + contentFlow.Height + buttonsPanel.Height + 52;
+            // Drag form support
+            headerPanel.MouseDown += FormDrag_MouseDown;
         }
 
-        private Label CreateTextLabel(string text)
+        private void AddParameterRow(TableLayoutPanel tbl, string label, string val, int row, bool isUtil = false)
         {
-            return new Label
-            {
-                Text = text,
-                Font = new Font("Segoe UI", 9.5f),
-                ForeColor = Color.FromArgb(71, 85, 105),
-                AutoSize = true,
-                MaximumSize = new Size(412, 0),
-                Margin = new Padding(0, 0, 0, 6),
-                BackColor = Color.Transparent
-            };
-        }
-
-        private void AddRow(TableLayoutPanel tbl, string label, string val, int row, bool highlight = false)
-        {
-            var lblLabel = new Label
+            var lblName = new Label
             {
                 Text = label,
-                Font = new Font("Segoe UI", 9.5f, highlight ? FontStyle.Bold : FontStyle.Regular),
-                ForeColor = highlight ? Color.FromArgb(220, 38, 38) : Color.FromArgb(30, 41, 59),
-                AutoSize = true,
-                Margin = new Padding(0, 4, 0, 4),
+                Font = new Font("Segoe UI", 9.5f, isUtil ? FontStyle.Bold : FontStyle.Regular),
+                ForeColor = isUtil ? Color.FromArgb(220, 38, 38) : Color.FromArgb(100, 116, 139), // slate-400 or warning red
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
                 BackColor = Color.Transparent
             };
+
             var lblVal = new Label
             {
                 Text = val,
-                Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold),
-                ForeColor = highlight ? Color.FromArgb(220, 38, 38) : Color.FromArgb(15, 23, 42),
-                AutoSize = true,
-                Margin = new Padding(0, 4, 0, 4),
+                Font = new Font("Segoe UI Semibold", 10f, FontStyle.Bold),
+                ForeColor = isUtil ? Color.FromArgb(220, 38, 38) : Color.FromArgb(15, 23, 42),
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight,
                 BackColor = Color.Transparent
             };
-            tbl.Controls.Add(lblLabel, 0, row);
+
+            tbl.Controls.Add(lblName, 0, row);
             tbl.Controls.Add(lblVal, 1, row);
+        }
+
+        // Support rounded form region & shadow border native API
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+            UpdateFormRegion();
+        }
+
+        private void UpdateFormRegion()
+        {
+            var path = new GraphicsPath();
+            int r = 28; // diameter for 14px radius
+            path.AddArc(0, 0, r, r, 180, 90);
+            path.AddArc(Width - r, 0, r, r, 270, 90);
+            path.AddArc(Width - r, Height - r, r, r, 0, 90);
+            path.AddArc(0, Height - r, r, r, 90, 90);
+            path.CloseFigure();
+            this.Region = new Region(path);
+        }
+
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                const int CS_DROPSHADOW = 0x00020000;
+                CreateParams cp = base.CreateParams;
+                cp.ClassStyle |= CS_DROPSHADOW;
+                return cp;
+            }
+        }
+
+        // Make window draggable
+        public const int WM_NCLBUTTONDOWN = 0xA1;
+        public const int HT_CAPTION = 0x2;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern bool ReleaseCapture();
+
+        private void FormDrag_MouseDown(object? sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                ReleaseCapture();
+                SendMessage(Handle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Double-buffered panel with rounded border capability.
+    /// </summary>
+    public class RoundedPanel : Panel
+    {
+        public int Radius { get; set; } = 8;
+        public Color BorderColor { get; set; } = Color.Transparent;
+        public float BorderWidth { get; set; } = 1f;
+
+        public RoundedPanel()
+        {
+            DoubleBuffered = true;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            var r = new Rectangle(0, 0, Width - 1, Height - 1);
+            using var path = RoundPath(r, Radius);
+
+            // Fill bg
+            using var bg = new SolidBrush(BackColor);
+            g.FillPath(bg, path);
+
+            // Draw border
+            if (BorderColor != Color.Transparent)
+            {
+                using var pen = new Pen(BorderColor, BorderWidth);
+                g.DrawPath(pen, path);
+            }
         }
 
         private static GraphicsPath RoundPath(Rectangle r, int radius)
         {
             var path = new GraphicsPath();
             int d = radius * 2;
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+    }
+
+    /// <summary>
+    /// Custom double-buffered button with rounded borders.
+    /// </summary>
+    public class RoundedButton : Button
+    {
+        public int Radius { get; set; } = 8;
+        public Color BorderColor { get; set; } = Color.Transparent;
+
+        public RoundedButton()
+        {
+            FlatStyle = FlatStyle.Flat;
+            FlatAppearance.BorderSize = 0;
+            DoubleBuffered = true;
+            Cursor = Cursors.Hand;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            var r = new Rectangle(0, 0, Width - 1, Height - 1);
+            using var path = RoundPath(r, Radius);
+
+            // Fill bg
+            using var bg = new SolidBrush(BackColor);
+            g.FillPath(bg, path);
+
+            // Draw border
+            if (BorderColor != Color.Transparent)
+            {
+                using var pen = new Pen(BorderColor, 1f);
+                g.DrawPath(pen, path);
+            }
+
+            // Text
+            TextRenderer.DrawText(g, Text, Font, r, ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        }
+
+        private static GraphicsPath RoundPath(Rectangle r, int radius)
+        {
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+    }
+
+    /// <summary>
+    /// Custom painted utilization progress bar based on traffic intensity scale rules.
+    /// </summary>
+    public class CustomProgressBar : Panel
+    {
+        public double Value { get; set; }
+
+        public CustomProgressBar(double val)
+        {
+            Value = val;
+            DoubleBuffered = true;
+            BackColor = Color.FromArgb(241, 245, 249); // slate-100
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // Background trace
+            var rBg = new Rectangle(0, 0, Width - 1, Height - 1);
+            using var pathBg = RoundPath(rBg, Height / 2);
+            using var brushBg = new SolidBrush(BackColor);
+            g.FillPath(brushBg, pathBg);
+
+            // Fill color rules: Green (<70%), Yellow (70-90%), Orange (90-100%), Red (>100%)
+            Color fillClr;
+            if (Value < 0.70)
+                fillClr = Color.FromArgb(34, 197, 94); // Green
+            else if (Value < 0.90)
+                fillClr = Color.FromArgb(234, 179, 8); // Yellow
+            else if (Value <= 1.00)
+                fillClr = Color.FromArgb(249, 115, 22); // Orange
+            else
+                fillClr = Color.FromArgb(239, 68, 68); // Red
+
+            double pct = Math.Min(1.0, Value);
+            int fillW = (int)(Width * pct);
+
+            if (fillW > 0)
+            {
+                var rFill = new Rectangle(0, 0, fillW, Height);
+                using var pathFill = RoundPath(rFill, Height / 2);
+                using var brushFill = new SolidBrush(fillClr);
+                g.FillPath(brushFill, pathFill);
+            }
+        }
+
+        private static GraphicsPath RoundPath(Rectangle r, int radius)
+        {
+            var path = new GraphicsPath();
+            int d = radius * 2;
+            if (d <= 0) d = 1;
             path.AddArc(r.X, r.Y, d, d, 180, 90);
             path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
             path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
