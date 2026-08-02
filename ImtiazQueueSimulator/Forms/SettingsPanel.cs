@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -6,7 +7,7 @@ namespace ImtiazQueueSimulator.Forms
 {
     /// <summary>
     /// Settings panel with preset scenarios and simulation configuration.
-    /// Redesigned with rounded preset cards and consistent spacing.
+    /// Redesigned with fully responsive cards and dynamic auto-expanding info box.
     /// </summary>
     public class SettingsPanel : UserControl
     {
@@ -17,7 +18,7 @@ namespace ImtiazQueueSimulator.Forms
         private static readonly Color CardBg    = Color.White;
         private static readonly Color TextDark  = Color.FromArgb(30, 41, 59);
         private static readonly Color TextMid   = Color.FromArgb(71, 85, 105);
-        private static readonly Color TextLight = Color.FromArgb(71, 85, 105);   // Slate 600 (High Contrast)
+        private static readonly Color TextLight = Color.FromArgb(100, 116, 139);
         private static readonly Color Border    = Color.FromArgb(226, 232, 240);
 
         public SettingsPanel()
@@ -29,28 +30,31 @@ namespace ImtiazQueueSimulator.Forms
 
         private void BuildUI()
         {
+            Controls.Clear();
+
             int y = 20;
 
-            // ── Page title ─────────────────────────────────────────────────────
-            Controls.Add(MakeLabel("⚙  SETTINGS & PRESETS",
-                new Font("Segoe UI", 14f, FontStyle.Bold), TextDark, 20, y, true));
-            y += 30;
+            // ── Page Title ──
+            var titleLabel = MakeLabel("⚙  SETTINGS & PRESETS", new Font("Segoe UI", 14f, FontStyle.Bold), TextDark, 20, y, true);
+            Controls.Add(titleLabel);
+            y += 32;
 
-            Controls.Add(MakeLabel(
-                "Configure simulation presets for common Imtiaz supermarket scenarios.",
-                new Font("Segoe UI", 9f), TextLight, 20, y, true));
-            y += 36;
+            // ── Subtitle ──
+            var subTitleLabel = MakeLabel("Configure simulation presets for common Imtiaz supermarket scenarios.", new Font("Segoe UI", 9.5f), TextLight, 20, y, false);
+            subTitleLabel.AutoSize = true;
+            Controls.Add(subTitleLabel);
+            y += 42;
 
-            // ── Preset section heading ─────────────────────────────────────────
-            Controls.Add(MakeLabel("IMTIAZ SCENARIO PRESETS",
-                new Font("Segoe UI", 8.5f, FontStyle.Bold), TextLight, 20, y, true));
+            // ── Section Heading ──
+            var sectionLabel = MakeLabel("IMTIAZ SCENARIO PRESETS", new Font("Segoe UI", 8.5f, FontStyle.Bold), TextLight, 20, y, true);
+            Controls.Add(sectionLabel);
             y += 24;
 
-            // ── Preset cards ───────────────────────────────────────────────────
+            // ── Preset Cards Flow Layout ──
             var presetFlow = new FlowLayoutPanel
             {
                 Location     = new Point(20, y),
-                Size         = new Size(Math.Max(300, Width - 40), 200),
+                Size         = new Size(Math.Max(300, Width - 40), 220),
                 AutoSize     = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 WrapContents = true,
@@ -75,15 +79,13 @@ namespace ImtiazQueueSimulator.Forms
                 "⚡  Overloaded", "Arrival rate exceeds capacity",
                 "λ = 30, μ = 12, N = 2", 30, 12, 2, Color.FromArgb(124, 58, 237)));
 
-            y += 215;
-
-            // ── Info card ──────────────────────────────────────────────────────
-            var lblHow = MakeLabel("HOW PRESETS WORK",
-                new Font("Segoe UI", 8.5f, FontStyle.Bold), TextLight, 20, y, true);
+            // ── Info Section Heading ──
+            var lblHow = MakeLabel("HOW PRESETS WORK", new Font("Segoe UI", 8.5f, FontStyle.Bold), TextLight, 20, y + 240, true);
             Controls.Add(lblHow);
-            y += 24;
 
-            var noteCard = CreateInfoCard(20, y, Math.Max(300, Width - 40), 165);
+            // ── Info Card (Auto-expanding) ──
+            var noteCard = CreateInfoCard(20, lblHow.Bottom + 12, Math.Max(300, Width - 40), 160);
+            
             var noteText = new Label
             {
                 Text =
@@ -95,18 +97,50 @@ namespace ImtiazQueueSimulator.Forms
                 Font      = new Font("Segoe UI", 9.5f),
                 ForeColor = TextMid,
                 Location  = new Point(18, 18),
-                Size      = new Size(Math.Max(260, noteCard.Width - 36), 135)
+                AutoSize  = true,
+                BackColor = Color.Transparent
             };
             noteCard.Controls.Add(noteText);
 
+            // ── Responsive Layout Logic ──
             Resize += (s, e) =>
             {
-                int cardW = Math.Max(300, Width - 40);
-                presetFlow.Width = cardW;
-                lblHow.Top = presetFlow.Bottom + 16;
-                noteCard.Top = lblHow.Bottom + 8;
-                noteCard.Width = cardW;
-                noteText.Width = Math.Max(260, noteCard.Width - 36);
+                int availW = Math.Max(300, Width - 40);
+                
+                titleLabel.Location = new Point(20, 20);
+                subTitleLabel.Location = new Point(20, titleLabel.Bottom + 6);
+                subTitleLabel.MaximumSize = new Size(availW, 0);
+                
+                sectionLabel.Location = new Point(20, subTitleLabel.Bottom + 24);
+                
+                presetFlow.Location = new Point(20, sectionLabel.Bottom + 12);
+                presetFlow.Width = availW;
+
+                // Adjust card sizes depending on container width (Desktop = 4 col, Tablet = 2 col, Phone = 1 col)
+                int gap = 16;
+                int numCols = 1;
+                if (availW >= 920) numCols = 4;
+                else if (availW >= 520) numCols = 2;
+                else numCols = 1;
+
+                int cardW = (availW - (numCols - 1) * gap) / numCols;
+                foreach (Control card in presetFlow.Controls)
+                {
+                    card.Width = cardW;
+                    card.Height = 210;
+                }
+
+                presetFlow.PerformLayout();
+
+                lblHow.Location = new Point(20, presetFlow.Bottom + 28);
+                noteCard.Location = new Point(20, lblHow.Bottom + 12);
+                noteCard.Width = availW;
+
+                // Make the info text auto-wrap and grow the card naturally
+                noteText.MaximumSize = new Size(availW - 36, 0);
+                noteCard.Height = noteText.Height + 36;
+
+                AutoScrollMinSize = new Size(0, noteCard.Bottom + 30);
             };
         }
 
@@ -117,10 +151,10 @@ namespace ImtiazQueueSimulator.Forms
         {
             var card = new Panel
             {
-                Size      = new Size(205, 185),
+                Size      = new Size(205, 210),
                 BackColor = CardBg,
                 Cursor    = Cursors.Hand,
-                Margin    = new Padding(0, 0, 12, 0)
+                Margin    = new Padding(0, 0, 16, 16)
             };
 
             card.Paint += (s, e) =>
@@ -138,64 +172,84 @@ namespace ImtiazQueueSimulator.Forms
             };
 
             // Title
-            card.Controls.Add(new Label
+            var titleLbl = new Label
             {
                 Text      = title,
-                Font      = new Font("Segoe UI Semibold", 9.5f),
+                Font      = new Font("Segoe UI Semibold", 10f, FontStyle.Bold),
                 ForeColor = TextDark,
-                AutoSize  = true,
+                AutoSize  = false,
                 Location  = new Point(12, 18),
                 BackColor = Color.Transparent
-            });
+            };
+            card.Controls.Add(titleLbl);
 
             // Description
-            card.Controls.Add(new Label
+            var descLbl = new Label
             {
                 Text      = desc,
                 Font      = new Font("Segoe UI", 8.5f),
                 ForeColor = TextLight,
-                Location  = new Point(12, 40),
-                Size      = new Size(180, 32),
-                BackColor = Color.Transparent
-            });
+                Location  = new Point(12, 44),
+                BackColor = Color.Transparent,
+                AutoSize  = false
+            };
+            card.Controls.Add(descLbl);
 
             // Params
-            card.Controls.Add(new Label
+            var paramLbl = new Label
             {
                 Text      = paramText,
-                Font      = new Font("Segoe UI Semibold", 9f),
+                Font      = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold),
                 ForeColor = accentColor,
-                AutoSize  = true,
-                Location  = new Point(12, 78),
+                AutoSize  = false,
+                Location  = new Point(12, 88),
                 BackColor = Color.Transparent
-            });
+            };
+            card.Controls.Add(paramLbl);
 
             // ρ value
-            card.Controls.Add(new Label
+            var rhoLbl = new Label
             {
                 Text      = $"ρ = {lambda / (n * mu):F3}",
-                Font      = new Font("Segoe UI", 8.5f),
-                ForeColor = TextLight,
-                AutoSize  = true,
-                Location  = new Point(12, 100),
+                Font      = new Font("Segoe UI Semibold", 9f),
+                ForeColor = TextMid,
+                AutoSize  = false,
+                Location  = new Point(12, 112),
                 BackColor = Color.Transparent
-            });
+            };
+            card.Controls.Add(rhoLbl);
 
             // Apply button
             var applyBtn = new Button
             {
                 Text      = "APPLY PRESET",
                 Size      = new Size(181, 36),
-                Location  = new Point(12, 135),
+                Location  = new Point(12, 154),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = accentColor,
                 ForeColor = Color.White,
-                Font      = new Font("Segoe UI Semibold", 9f),
+                Font      = new Font("Segoe UI Semibold", 9f, FontStyle.Bold),
                 Cursor    = Cursors.Hand
             };
             applyBtn.FlatAppearance.BorderSize = 0;
             applyBtn.Click += (s, e) => OnPresetSelected?.Invoke(lambda, mu, n);
             card.Controls.Add(applyBtn);
+
+            // Clicking card background also triggers select
+            card.Click += (s, e) => OnPresetSelected?.Invoke(lambda, mu, n);
+
+            // Responsive layout inside card
+            card.Resize += (s, e) =>
+            {
+                int w = card.Width;
+                titleLbl.Width = w - 24;
+                descLbl.Width = w - 24;
+                descLbl.Height = 38;
+                paramLbl.Width = w - 24;
+                rhoLbl.Width = w - 24;
+                applyBtn.Width = w - 24;
+                applyBtn.Location = new Point(12, card.Height - 48);
+            };
 
             return card;
         }
@@ -245,7 +299,6 @@ namespace ImtiazQueueSimulator.Forms
 
         private void FillRoundedRectTop(Graphics g, Brush brush, Rectangle r, int rad)
         {
-            // Only fill the top 5px as an accent strip
             g.FillRectangle(brush, r.X + 1, r.Y + 1, r.Width - 2, 5);
         }
 
