@@ -486,8 +486,11 @@ namespace ImtiazQueueSimulator.Forms
             _simulationPanel.OnSimulationFinished();
 
             var res = _lastResult;
+            double theoreticalRho = res.ModelName.Contains("/N") ? (res.Lambda / (res.NumServers * res.Mu)) : (res.Lambda / res.Mu);
+            bool isUnstable = theoreticalRho >= 1;
+
             string summaryText =
-                $"✓ SIMULATION COMPLETED ({res.ModelName})\n" +
+                (isUnstable ? $"⚠ SIMULATION COMPLETED - UNSTABLE ({res.ModelName})\n" : $"✓ SIMULATION COMPLETED ({res.ModelName})\n") +
                 "═══════════════════════════════════════\n\n" +
                 $"  Simulation Time:     {res.SimulationTime:F2} hours\n" +
                 $"  Customers Generated: {res.TotalCustomers}\n" +
@@ -501,6 +504,13 @@ namespace ImtiazQueueSimulator.Forms
                 $"  Waiting Time (Wq):   {res.SimWq * 60:F2} min ({res.SimWq:F4} hr)\n" +
                 $"  System Time (W):     {res.SimW * 60:F2} min ({res.SimW:F4} hr)\n" +
                 $"  Server Util (ρ):     {res.SimRho * 100:F1}%\n\n";
+
+            if (isUnstable)
+            {
+                summaryText +=
+                    "⚠️ WARNING: Theoretical system stability check indicates UNSTABLE (ρ ≥ 1.0).\n" +
+                    "  The queue size and waiting times grow unbounded over time.\n\n";
+            }
 
             if (res.HasAnalyticalResults)
             {

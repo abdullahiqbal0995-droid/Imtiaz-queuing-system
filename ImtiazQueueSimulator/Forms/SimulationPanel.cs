@@ -811,12 +811,14 @@ namespace ImtiazQueueSimulator.Forms
 
             int servers = (int)_nudServers.Value;
 
-            var (isStable, msg) = QueueStatistics.CheckStability(lambda, mu, servers);
-            if (!isStable)
+            double rho = lambda / (servers * mu);
+            if (rho >= 1)
             {
-                var dr = MessageBox.Show(msg + "\n\nContinue simulation anyway?",
-                    "Stability Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                if (dr != DialogResult.Yes) return;
+                using var warningForm = new StabilityWarningForm(lambda, mu, servers, rho);
+                if (warningForm.ShowDialog(this) != DialogResult.Yes)
+                {
+                    return;
+                }
             }
 
             double.TryParse(_txtSvcParam1.Text, out double sp1);
