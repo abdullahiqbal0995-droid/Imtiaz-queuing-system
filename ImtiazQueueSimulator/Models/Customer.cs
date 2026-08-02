@@ -47,28 +47,84 @@ namespace ImtiazQueueSimulator.Models
             TimeInSystem = double.NaN;
         }
 
+        // ── Display properties enforcing 100% mathematical consistency ───────
+        public string DisplayArrival => FormatTime(ArrivalTime);
+        public string DisplaySvcStart => FormatTime(ServiceStartTime);
+        public string DisplayDeparture => FormatTime(DepartureTime);
+
+        public string DisplayWq
+        {
+            get
+            {
+                if (double.IsNaN(ArrivalTime) || double.IsNaN(ServiceStartTime)) return "--";
+                long arrSec = (long)Math.Round(ArrivalTime * 3600);
+                long svcSec = (long)Math.Round(ServiceStartTime * 3600);
+                return FormatDurationFromSeconds(svcSec - arrSec);
+            }
+        }
+
+        public string DisplayService
+        {
+            get
+            {
+                if (double.IsNaN(ServiceStartTime) || double.IsNaN(DepartureTime)) return "--";
+                long svcSec = (long)Math.Round(ServiceStartTime * 3600);
+                long depSec = (long)Math.Round(DepartureTime * 3600);
+                return FormatDurationFromSeconds(depSec - svcSec);
+            }
+        }
+
+        public string DisplayW
+        {
+            get
+            {
+                if (double.IsNaN(ArrivalTime) || double.IsNaN(DepartureTime)) return "--";
+                long arrSec = (long)Math.Round(ArrivalTime * 3600);
+                long depSec = (long)Math.Round(DepartureTime * 3600);
+                return FormatDurationFromSeconds(depSec - arrSec);
+            }
+        }
+
         /// <summary>
-        /// Format time in hours as HH:MM:SS string
+        /// Format time in hours as HH:MM:SS string using rounded seconds.
         /// </summary>
         public static string FormatTime(double hours)
         {
             if (double.IsNaN(hours) || double.IsInfinity(hours)) return "--:--:--";
-            TimeSpan ts = TimeSpan.FromHours(hours);
-            return $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+            long totalSeconds = (long)Math.Round(hours * 3600);
+            long secs = totalSeconds % 60;
+            long totalMins = totalSeconds / 60;
+            long mins = totalMins % 60;
+            long hrs = totalMins / 60;
+            return $"{hrs:D2}:{mins:D2}:{secs:D2}";
         }
 
         /// <summary>
-        /// Format duration in hours as human-readable string
+        /// Format duration in hours as human-readable string using rounded seconds.
         /// </summary>
         public static string FormatDuration(double hours)
         {
             if (double.IsNaN(hours) || double.IsInfinity(hours)) return "--";
-            TimeSpan ts = TimeSpan.FromHours(hours);
-            if (ts.TotalMinutes < 1)
-                return $"{ts.Seconds} sec";
-            if (ts.TotalHours < 1)
-                return $"{(int)ts.TotalMinutes} min {ts.Seconds} sec";
-            return $"{(int)ts.TotalHours} hr {ts.Minutes} min {ts.Seconds} sec";
+            return FormatDurationFromSeconds(hours * 3600);
+        }
+
+        /// <summary>
+        /// Format duration in seconds as human-readable string.
+        /// </summary>
+        public static string FormatDurationFromSeconds(double seconds)
+        {
+            if (double.IsNaN(seconds) || double.IsInfinity(seconds) || seconds < 0) return "--";
+            long totalSecs = (long)Math.Round(seconds);
+            long secs = totalSecs % 60;
+            long totalMins = totalSecs / 60;
+            long mins = totalMins % 60;
+            long hrs = totalMins / 60;
+
+            if (totalMins < 1)
+                return $"{secs} sec";
+            if (hrs < 1)
+                return $"{mins} min {secs} sec";
+            return $"{hrs} hr {mins} min {secs} sec";
         }
     }
 }

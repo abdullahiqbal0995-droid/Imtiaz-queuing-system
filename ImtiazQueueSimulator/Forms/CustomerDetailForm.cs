@@ -297,15 +297,15 @@ namespace ImtiazQueueSimulator.Forms
             AddRowToTable(infoTable, "Current Status", _customer.Status, statusBg);
             AddDividerRowToTable(infoTable);
 
-            AddRowToTable(infoTable, "Arrival Time", Customer.FormatTime(_customer.ArrivalTime));
+            AddRowToTable(infoTable, "Arrival Time", _customer.DisplayArrival);
             AddRowToTable(infoTable, "Queue Entry", Customer.FormatTime(_customer.QueueEntryTime));
-            AddRowToTable(infoTable, "Service Start", Customer.FormatTime(_customer.ServiceStartTime));
-            AddRowToTable(infoTable, "Departure Time", Customer.FormatTime(_customer.DepartureTime));
+            AddRowToTable(infoTable, "Service Start", _customer.DisplaySvcStart);
+            AddRowToTable(infoTable, "Departure Time", _customer.DisplayDeparture);
             AddDividerRowToTable(infoTable);
 
-            AddRowToTable(infoTable, "Waiting Time (Wq)", Customer.FormatDuration(_customer.WaitingTime), Color.FromArgb(217, 119, 6));
-            AddRowToTable(infoTable, "Service Time", Customer.FormatDuration(_customer.ServiceTime));
-            AddRowToTable(infoTable, "System Time (W)", Customer.FormatDuration(_customer.TimeInSystem), Color.FromArgb(124, 58, 237));
+            AddRowToTable(infoTable, "Waiting Time (Wq)", _customer.DisplayWq, Color.FromArgb(217, 119, 6));
+            AddRowToTable(infoTable, "Service Time", _customer.DisplayService);
+            AddRowToTable(infoTable, "System Time (W)", _customer.DisplayW, Color.FromArgb(124, 58, 237));
             AddRowToTable(infoTable, "Assigned Server", _customer.AssignedServer > 0 ? $"Cashier {_customer.AssignedServer:D2}" : "—");
 
             _infoCard.Controls.Add(infoTable);
@@ -362,12 +362,12 @@ namespace ImtiazQueueSimulator.Forms
             _timelineCtrl = new TimelineControl
             {
                 Dock             = DockStyle.Fill,
-                ArrivalTime      = Customer.FormatTime(_customer.ArrivalTime),
-                ServiceStartTime = Customer.FormatTime(_customer.ServiceStartTime),
-                DepartureTime    = Customer.FormatTime(_customer.DepartureTime),
-                WaitingDuration  = Customer.FormatDuration(_customer.WaitingTime),
-                ServiceDuration  = Customer.FormatDuration(_customer.ServiceTime),
-                TotalDuration    = Customer.FormatDuration(_customer.TimeInSystem),
+                ArrivalTime      = _customer.DisplayArrival,
+                ServiceStartTime = _customer.DisplaySvcStart,
+                DepartureTime    = _customer.DisplayDeparture,
+                WaitingDuration  = _customer.DisplayWq,
+                ServiceDuration  = _customer.DisplayService,
+                TotalDuration    = _customer.DisplayW,
                 AssignedServer   = _customer.AssignedServer > 0 ? $"Cashier {_customer.AssignedServer:D2}" : "Cashier 01"
             };
             _journeyCard.Controls.Add(_timelineCtrl);

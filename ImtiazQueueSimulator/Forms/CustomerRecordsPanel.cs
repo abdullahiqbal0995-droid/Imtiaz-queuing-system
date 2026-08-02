@@ -413,12 +413,12 @@ namespace ImtiazQueueSimulator.Forms
                 int rowIdx = _grid.Rows.Add(
                     $"{c.Id:D3}",
                     c.Name,
-                    Customer.FormatTime(c.ArrivalTime),
-                    Customer.FormatTime(c.ServiceStartTime),
-                    Customer.FormatDuration(c.ServiceTime),
-                    Customer.FormatTime(c.DepartureTime),
-                    Customer.FormatDuration(c.WaitingTime),
-                    Customer.FormatDuration(c.TimeInSystem),
+                    c.DisplayArrival,
+                    c.DisplaySvcStart,
+                    c.DisplayService,
+                    c.DisplayDeparture,
+                    c.DisplayWq,
+                    c.DisplayW,
                     c.AssignedServer > 0 ? $"Cashier {c.AssignedServer:D2}" : "—",
                     c.Status,
                     "Details"

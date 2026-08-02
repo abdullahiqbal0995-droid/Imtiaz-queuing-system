@@ -123,12 +123,12 @@ namespace ImtiazQueueSimulator.Reports
             foreach (var c in result.AllCustomers)
             {
                 sb.AppendLine($"{c.Id,-6} {c.Name,-16} " +
-                    $"{Customer.FormatTime(c.ArrivalTime),-10} " +
-                    $"{Customer.FormatTime(c.ServiceStartTime),-10} " +
-                    $"{Customer.FormatDuration(c.ServiceTime),-15} " +
-                    $"{Customer.FormatTime(c.DepartureTime),-10} " +
-                    $"{Customer.FormatDuration(c.WaitingTime),-15} " +
-                    $"{Customer.FormatDuration(c.TimeInSystem),-15} " +
+                    $"{c.DisplayArrival,-10} " +
+                    $"{c.DisplaySvcStart,-10} " +
+                    $"{c.DisplayService,-15} " +
+                    $"{c.DisplayDeparture,-10} " +
+                    $"{c.DisplayWq,-15} " +
+                    $"{c.DisplayW,-15} " +
                     $"{(c.AssignedServer > 0 ? "Cashier " + c.AssignedServer : "—"),-12} " +
                     $"{c.Status,-10}");
             }
