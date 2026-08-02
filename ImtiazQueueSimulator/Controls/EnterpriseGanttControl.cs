@@ -16,11 +16,12 @@ namespace ImtiazQueueSimulator.Controls
     ///   1. CUSTOMER (Blue #2563EB)
     ///   2. IDLE     (Light Gray #F1F5F9)
     ///
-    /// Fixes Applied:
-    ///   - Dynamic text measurement & StringFormatFlags.NoWrap to eliminate ALL text overlapping and line-wrap bugs
-    ///   - Server label and green dot positioning dynamically calculated with zero overlap
-    ///   - Responsive timeline scale (min 400px per hour) ensuring ample block width and readability
-    ///   - Strict width thresholds for 3-line, 2-line, 1-line, and tiny block text rendering
+    /// Root Causes Resolved (Debugging Engineering Audit):
+    ///   1. Subpixel Precision Timeline: Calculates bx1 and bx2 directly from start and end timestamps.
+    ///      Eliminated Math.Max(6f, bw) inflation bug that caused adjacent block overlapping!
+    ///   2. Strict Sequence Guarantee: Ensures start time is never less than previous completion time.
+    ///   3. Adaptive Corner Radius: Radius clamped to Math.Min(8, width/2) to prevent geometric arc spilling.
+    ///   4. Strict No-Wrap Typography: Prevents multi-line string collisions and clipped labels.
     /// </summary>
     public class EnterpriseGanttControl : UserControl
     {
@@ -665,7 +666,7 @@ namespace ImtiazQueueSimulator.Controls
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        //  CONTINUOUS TIMELINE CANVAS PAINTER (STRICT NO-OVERFLOW TYPOGRAPHY)
+        //  CONTINUOUS TIMELINE CANVAS PAINTER (SUBPIXEL PRECISION)
         // ═══════════════════════════════════════════════════════════════════════
 
         private void PaintTimelineCanvas(object? sender, PaintEventArgs e)
@@ -730,7 +731,7 @@ namespace ImtiazQueueSimulator.Controls
                 g.DrawString(timeStr, tickFont, tickBrush, new RectangleF(tx - 40, 14, 80, 20), sf);
             }
 
-            // ── B. CONTINUOUS TIMELINE ────────────────────────────────────────
+            // ── B. CONTINUOUS TIMELINE RE-ENGINEERED ──────────────────────────
             for (int s = 1; s <= ns; s++)
             {
                 if (_serverFilter > 0 && _serverFilter != s) continue;
@@ -752,7 +753,7 @@ namespace ImtiazQueueSimulator.Controls
                 for (int i = 0; i < custs.Count; i++)
                 {
                     var c = custs[i];
-                    double st = c.ServiceStartTime;
+                    double st = Math.Max(currentTime, c.ServiceStartTime);
                     double et = c.DepartureTime > st ? c.DepartureTime : Math.Min(maxT, st + c.ServiceTime);
 
                     // 1. Render IDLE block if there is a gap before this customer
@@ -777,17 +778,21 @@ namespace ImtiazQueueSimulator.Controls
             }
         }
 
-        // ── Customer Block Renderer (Blue) ────────────────────────────────────
+        // ── Customer Block Renderer (Subpixel Precision - Zero Overlap) ──────
         private void RenderCustomerBlock(Graphics g, Customer c, double st, double et, double maxT, int tW, int taskY)
         {
-            float bx = 20 + (float)(st / maxT * tW);
-            float bw = Math.Max(6f, (float)((et - st) / maxT * tW));
+            float bx1 = 20 + (float)(st / maxT * tW);
+            float bx2 = 20 + (float)(et / maxT * tW);
+            float bw  = Math.Max(1f, bx2 - bx1); // Subpixel precise width matching start -> end exactly
 
-            var blockR = new RectangleF(bx, taskY, bw, TaskHeight);
+            var blockR = new RectangleF(bx1, taskY, bw, TaskHeight);
             bool isSelected = _selected == c;
             bool isHovered  = _hovered == c;
 
-            using (var path = RoundPath(Rectangle.Round(blockR), TaskRadius))
+            // Clamped Corner Radius prevents visual geometry distortion on narrow blocks
+            int rad = Math.Min(TaskRadius, Math.Max(1, (int)(bw / 2)));
+
+            using (var path = RoundPath(Rectangle.Round(blockR), rad))
             {
                 using var bBrush = new SolidBrush(ClrCustomer);
                 g.FillPath(bBrush, path);
@@ -814,9 +819,9 @@ namespace ImtiazQueueSimulator.Controls
                 using var fontSub   = new Font("Segoe UI Semibold", 6.8f);
 
                 var sf = new StringFormat { Alignment = StringAlignment.Near, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
-                g.DrawString($"Customer {c.Id:D3}", fontTitle, whiteBrush, new RectangleF(bx + 6, taskY + 3,  bw - 10, 13), sf);
-                g.DrawString($"ID : C{c.Id:D3}",     fontSub,   whiteBrush, new RectangleF(bx + 6, taskY + 16, bw - 10, 12), sf);
-                g.DrawString($"{Customer.FormatTime(st)} → {Customer.FormatTime(et)}", fontSub, whiteBrush, new RectangleF(bx + 6, taskY + 28, bw - 10, 12), sf);
+                g.DrawString($"Customer {c.Id:D3}", fontTitle, whiteBrush, new RectangleF(bx1 + 6, taskY + 3,  bw - 10, 13), sf);
+                g.DrawString($"ID : C{c.Id:D3}",     fontSub,   whiteBrush, new RectangleF(bx1 + 6, taskY + 16, bw - 10, 12), sf);
+                g.DrawString($"{Customer.FormatTime(st)} → {Customer.FormatTime(et)}", fontSub, whiteBrush, new RectangleF(bx1 + 6, taskY + 28, bw - 10, 12), sf);
             }
             else if (bw >= 90)
             {
@@ -825,8 +830,8 @@ namespace ImtiazQueueSimulator.Controls
                 using var fontSub   = new Font("Segoe UI Semibold", 6.8f);
 
                 var sf = new StringFormat { Alignment = StringAlignment.Near, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
-                g.DrawString($"Customer {c.Id:D3}", fontTitle, whiteBrush, new RectangleF(bx + 5, taskY + 6,  bw - 8, 14), sf);
-                g.DrawString($"C{c.Id:D3}",          fontSub,   whiteBrush, new RectangleF(bx + 5, taskY + 22, bw - 8, 12), sf);
+                g.DrawString($"Customer {c.Id:D3}", fontTitle, whiteBrush, new RectangleF(bx1 + 5, taskY + 6,  bw - 8, 14), sf);
+                g.DrawString($"C{c.Id:D3}",          fontSub,   whiteBrush, new RectangleF(bx1 + 5, taskY + 22, bw - 8, 12), sf);
             }
             else if (bw >= 45)
             {
@@ -838,17 +843,20 @@ namespace ImtiazQueueSimulator.Controls
             // Tiny (< 45px): Solid blue block only (no text overflow)
         }
 
-        // ── Idle Block Renderer (Light Gray) ──────────────────────────────────
+        // ── Idle Block Renderer (Subpixel Precision - Zero Overlap) ──────────
         private void RenderIdleBlock(Graphics g, int server, double st, double et, double maxT, int tW, int taskY)
         {
-            float bx = 20 + (float)(st / maxT * tW);
-            float bw = Math.Max(6f, (float)((et - st) / maxT * tW));
+            float bx1 = 20 + (float)(st / maxT * tW);
+            float bx2 = 20 + (float)(et / maxT * tW);
+            float bw  = Math.Max(1f, bx2 - bx1); // Subpixel precise width matching start -> end exactly
 
-            var blockR = new RectangleF(bx, taskY, bw, TaskHeight);
+            var blockR = new RectangleF(bx1, taskY, bw, TaskHeight);
             bool isHovered = _hoveredIdle.HasValue && _hoveredIdle.Value.Server == server &&
                              Math.Abs(_hoveredIdle.Value.Start - st) < 0.001;
 
-            using (var path = RoundPath(Rectangle.Round(blockR), TaskRadius))
+            int rad = Math.Min(TaskRadius, Math.Max(1, (int)(bw / 2)));
+
+            using (var path = RoundPath(Rectangle.Round(blockR), rad))
             {
                 using var bBrush = new SolidBrush(ClrIdle);
                 g.FillPath(bBrush, path);
@@ -864,8 +872,8 @@ namespace ImtiazQueueSimulator.Controls
                 using var fontSub   = new Font("Segoe UI", 6.8f);
 
                 var sf = new StringFormat { Alignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
-                g.DrawString("Idle", fontTitle, textBrush, new RectangleF(bx + 4, taskY + 6,  bw - 8, 14), sf);
-                g.DrawString($"{Customer.FormatTime(st)} → {Customer.FormatTime(et)}", fontSub, textBrush, new RectangleF(bx + 4, taskY + 22, bw - 8, 12), sf);
+                g.DrawString("Idle", fontTitle, textBrush, new RectangleF(bx1 + 4, taskY + 6,  bw - 8, 14), sf);
+                g.DrawString($"{Customer.FormatTime(st)} → {Customer.FormatTime(et)}", fontSub, textBrush, new RectangleF(bx1 + 4, taskY + 22, bw - 8, 12), sf);
             }
             else if (bw >= 45)
             {
@@ -1055,7 +1063,7 @@ namespace ImtiazQueueSimulator.Controls
                 for (int i = 0; i < custs.Count; i++)
                 {
                     var c = custs[i];
-                    double st = c.ServiceStartTime;
+                    double st = Math.Max(currentTime, c.ServiceStartTime);
                     double et = c.DepartureTime > st ? c.DepartureTime : Math.Min(maxT, st + c.ServiceTime);
 
                     if (st > currentTime + 0.0001 && tAtMouse >= currentTime && tAtMouse <= st)
