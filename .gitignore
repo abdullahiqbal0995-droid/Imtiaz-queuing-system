@@ -12,3 +12,7 @@
 Thumbs.db
 [Dd]esktop.ini
 .DS_Store
+
+# Project Export Artifacts
+ExportedFiles/
+Exported_Models_and_Simulation.zip
