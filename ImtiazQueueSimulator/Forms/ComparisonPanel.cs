@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 using ImtiazQueueSimulator.Simulation;
@@ -8,10 +9,10 @@ namespace ImtiazQueueSimulator.Forms
     /// <summary>
     /// Model comparison panel — runs all queueing models with identical parameters side-by-side.
     /// Features:
-    ///   - Badges for ANALYTICAL vs SIMULATION
-    ///   - Consistent number formatting (ρ = 55.6%, Lq/L = 4 decimals, Wq/W = 2 decimals in min)
-    ///   - Fixed column widths preventing text overflow
-    ///   - Alternate row colors per model pair
+    ///   - Professional table formatting with perfect column header & cell alignments
+    ///   - High contrast styling: Dark Navy header bar, soft zebra striping, soft blue row selection
+    ///   - Badges for ANALYTICAL vs SIMULATION evaluation methods
+    ///   - Number formatting (ρ = 55.6%, Lq/L = 4 decimals, Wq/W = 2 decimals in min)
     /// </summary>
     public class ComparisonPanel : UserControl
     {
@@ -74,7 +75,7 @@ namespace ImtiazQueueSimulator.Forms
             _lblStatus = new Label
             {
                 Text      = "Enter parameters and click RUN ALL MODELS to compare.",
-                Font      = new Font("Segoe UI", 9f),
+                Font      = new Font("Segoe UI Semibold", 9f),
                 ForeColor = Color.FromArgb(71, 85, 105),
                 AutoSize  = true,
                 Location  = new Point(15, statusY)
@@ -121,7 +122,7 @@ namespace ImtiazQueueSimulator.Forms
             btnRun.Click += BtnRun_Click;
             paramPanel.Controls.Add(btnRun);
 
-            // Results grid
+            // Results grid - High Contrast & Modern Row Selection
             _grid = new DataGridView
             {
                 Location = new Point(15, gridY),
@@ -134,30 +135,89 @@ namespace ImtiazQueueSimulator.Forms
                 AllowUserToAddRows = false,
                 ReadOnly = true,
                 Font = new Font("Segoe UI", 9.5f),
-                RowTemplate = { Height = 34 },
-                GridColor = Color.FromArgb(241, 245, 249),
+                RowTemplate = { Height = 38 },
+                GridColor = Color.FromArgb(226, 232, 240),
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                ColumnHeadersHeight = 42,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
                 ColumnHeadersDefaultCellStyle =
                 {
-                    BackColor = Color.FromArgb(27, 42, 71),
+                    BackColor = Color.FromArgb(15, 23, 42),       // Dark Navy Slate 900
                     ForeColor = Color.White,
-                    Font = new Font("Segoe UI Semibold", 9f),
-                    Padding = new Padding(6)
+                    Font = new Font("Segoe UI Bold", 9.5f),
+                    Padding = new Padding(8, 0, 8, 0)
+                },
+                DefaultCellStyle =
+                {
+                    ForeColor = Color.FromArgb(30, 41, 59),
+                    SelectionBackColor = Color.FromArgb(239, 246, 255), // Soft Sky Blue Selection
+                    SelectionForeColor = Color.FromArgb(15, 23, 42),
+                    Padding = new Padding(8, 0, 8, 0)
+                },
+                AlternatingRowsDefaultCellStyle =
+                {
+                    BackColor = Color.FromArgb(248, 250, 252),
+                    SelectionBackColor = Color.FromArgb(239, 246, 255),
+                    SelectionForeColor = Color.FromArgb(15, 23, 42)
                 },
                 EnableHeadersVisualStyles = false,
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
             };
 
+            // Setup columns with matched Header and Cell Alignments
             _grid.Columns.AddRange(new DataGridViewColumn[]
             {
-                new DataGridViewTextBoxColumn { Name = "Model", HeaderText = "Model", Width = 90 },
-                new DataGridViewTextBoxColumn { Name = "N",     HeaderText = "N",     Width = 45, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter } },
-                new DataGridViewTextBoxColumn { Name = "Type",  HeaderText = "Evaluation Method", Width = 150 },
-                new DataGridViewTextBoxColumn { Name = "Rho",   HeaderText = "ρ (Util)",  Width = 90, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight } },
-                new DataGridViewTextBoxColumn { Name = "Lq",    HeaderText = "Lq (Queue)", Width = 100, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight } },
-                new DataGridViewTextBoxColumn { Name = "L",     HeaderText = "L (System)", Width = 100, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight } },
-                new DataGridViewTextBoxColumn { Name = "Wq",    HeaderText = "Wq (min)",  Width = 110, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight } },
-                new DataGridViewTextBoxColumn { Name = "W",     HeaderText = "W (min)",   Width = 110, DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight } }
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "Model", HeaderText = "Model", Width = 90,
+                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleLeft } },
+                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleLeft, Font = new Font("Segoe UI Bold", 9.5f) }
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "N", HeaderText = "N", Width = 50,
+                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleCenter } },
+                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "Type", HeaderText = "Evaluation Method", Width = 160,
+                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleLeft } },
+                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleLeft }
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "Rho", HeaderText = "ρ (Util)", Width = 90,
+                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
+                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "Lq", HeaderText = "Lq (Queue)", Width = 110,
+                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
+                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "L", HeaderText = "L (System)", Width = 110,
+                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
+                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "Wq", HeaderText = "Wq (min)", Width = 120,
+                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
+                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
+                },
+                new DataGridViewTextBoxColumn
+                {
+                    Name = "W", HeaderText = "W (min)", Width = 120,
+                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
+                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
+                }
             });
+
             _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
             Controls.Add(_grid);
@@ -205,7 +265,7 @@ namespace ImtiazQueueSimulator.Forms
                         FmtMin(analytical.AnalyticalWq),
                         FmtMin(analytical.AnalyticalW)
                     );
-                    _grid.Rows[idx].Cells[2].Style.ForeColor = Color.FromArgb(37, 99, 235);
+                    _grid.Rows[idx].Cells[2].Style.ForeColor = Color.FromArgb(29, 78, 216);
                     _grid.Rows[idx].Cells[2].Style.Font = new Font("Segoe UI Semibold", 8.5f);
                 }
 
@@ -226,10 +286,10 @@ namespace ImtiazQueueSimulator.Forms
                     FmtMin(simResult.SimWq),
                     FmtMin(simResult.SimW)
                 );
-                _grid.Rows[simIdx].Cells[2].Style.ForeColor = Color.FromArgb(22, 163, 74);
+                _grid.Rows[simIdx].Cells[2].Style.ForeColor = Color.FromArgb(4, 120, 87);
                 _grid.Rows[simIdx].Cells[2].Style.Font = new Font("Segoe UI Semibold", 8.5f);
 
-                // Alternate background color per model pair
+                // Alternate background color per model pair for high-contrast zebra layout
                 int lastIdx = _grid.Rows.Count - 1;
                 if (lastIdx > 0 && _grid.Rows[lastIdx - 1].DefaultCellStyle.BackColor == Color.White)
                 {
@@ -253,35 +313,28 @@ namespace ImtiazQueueSimulator.Forms
             return $"{v:F4}";
         }
 
-        private static string FmtMin(double hours)
+        private static string FmtMin(double v)
         {
-            if (double.IsNaN(hours) || double.IsInfinity(hours)) return "—";
-            return $"{hours * 60:F2} min";
+            if (double.IsNaN(v) || double.IsInfinity(v)) return "—";
+            return $"{v * 60:F2} min";
         }
 
-        private Label MakeLabel(string text)
+        private static Label MakeLabel(string text) => new Label
         {
-            return new Label
-            {
-                Text = text,
-                Font = new Font("Segoe UI Semibold", 9f),
-                ForeColor = Color.FromArgb(71, 85, 105),
-                AutoSize = true,
-                Margin = new Padding(0, 4, 4, 0)
-            };
-        }
+            Text      = text,
+            Font      = new Font("Segoe UI Semibold", 9.5f),
+            ForeColor = Color.FromArgb(71, 85, 105),
+            AutoSize  = true,
+            Margin    = new Padding(0, 5, 8, 0)
+        };
 
-        private TextBox MakeTextBox(string text)
+        private static TextBox MakeTextBox(string def) => new TextBox
         {
-            return new TextBox
-            {
-                Text = text,
-                Size = new Size(60, 24),
-                Font = new Font("Segoe UI", 9.5f),
-                BackColor = Color.FromArgb(248, 250, 252),
-                BorderStyle = BorderStyle.FixedSingle,
-                Margin = new Padding(0, 0, 16, 0)
-            };
-        }
+            Text      = def,
+            Size      = new Size(55, 26),
+            Font      = new Font("Segoe UI", 9.5f),
+            Margin    = new Padding(0, 0, 16, 0),
+            BackColor = Color.FromArgb(248, 250, 252)
+        };
     }
 }
