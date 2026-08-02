@@ -16,12 +16,11 @@ namespace ImtiazQueueSimulator.Controls
     ///   1. CUSTOMER (Blue #2563EB)
     ///   2. IDLE     (Light Gray #F1F5F9)
     ///
-    /// Design Rules:
-    ///   - Legend: ONLY "Customer" and "Idle"
-    ///   - Continuous Timeline: Blocks touch each other with 0 floating gaps
-    ///   - Adaptive Typography: Auto-scaling text according to block width
-    ///   - Pinned Server Left Column & Top Sticky Time Scale (15m major, 5m minor ticks)
-    ///   - Customer Details Panel & 6 Bottom KPI Cards
+    /// Fixes Applied:
+    ///   - Dynamic text measurement & StringFormatFlags.NoWrap to eliminate ALL text overlapping and line-wrap bugs
+    ///   - Server label and green dot positioning dynamically calculated with zero overlap
+    ///   - Responsive timeline scale (min 400px per hour) ensuring ample block width and readability
+    ///   - Strict width thresholds for 3-line, 2-line, 1-line, and tiny block text rendering
     /// </summary>
     public class EnterpriseGanttControl : UserControl
     {
@@ -85,7 +84,7 @@ namespace ImtiazQueueSimulator.Controls
 
         // Geometry Constants
         private const int RowHeight    = 85;
-        private const int TaskHeight   = 44;
+        private const int TaskHeight   = 46;
         private const int TaskRadius   = 8;
         private const int AxisHeight   = 50;
         private const int PinnedColWidth = 180;
@@ -123,7 +122,7 @@ namespace ImtiazQueueSimulator.Controls
             _scroll.Controls.Add(_headerCard);
             currentY += 78 + 18;
 
-            // ── 2. FILTER & CONTROL BAR CARD (Strict 2-Item Legend) ────────────
+            // ── 2. FILTER & CONTROL BAR CARD ──────────────────────────────────
             _filterCard = CreateCardPanel(currentY, 56);
             BuildFilterSection(_filterCard);
             _scroll.Controls.Add(_filterCard);
@@ -268,7 +267,6 @@ namespace ImtiazQueueSimulator.Controls
             };
             card.Controls.Add(_cmbServer);
 
-            // STRICT LEGEND: ONLY CUSTOMER AND IDLE
             var legends = new (string Name, Color Color, Color Border)[]
             {
                 ("Customer", ClrCustomer, ClrCustomer),
@@ -303,7 +301,6 @@ namespace ImtiazQueueSimulator.Controls
                 lx += lbl.PreferredWidth + 36;
             }
 
-            // Search Box
             _txtSearch = new TextBox
             {
                 Text = "Search Customer by ID or Name...",
@@ -597,7 +594,7 @@ namespace ImtiazQueueSimulator.Controls
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        //  SERVER COLUMN PAINTER (Pinned Left Column)
+        //  SERVER COLUMN PAINTER (Pinned Left Column - No Overlapping Dots)
         // ═══════════════════════════════════════════════════════════════════════
 
         private void PaintServerColumn(object? sender, PaintEventArgs e)
@@ -608,7 +605,7 @@ namespace ImtiazQueueSimulator.Controls
 
             int panW = _serverColPanel.Width;
 
-            // Axis Top Corner Title "Server / Time"
+            // Axis Top Corner Title "Server"
             using (var fontTime  = new Font("Segoe UI Bold", 9f))
             using (var brushTime = new SolidBrush(TextMid))
                 g.DrawString("Server", fontTime, brushTime, new PointF(16, 16));
@@ -630,13 +627,17 @@ namespace ImtiazQueueSimulator.Controls
                     g.DrawLine(penSep, 0, rowY + RowHeight, panW, rowY + RowHeight);
 
                 // Cashier Name
+                string cashierText = $"Cashier {s:D2}";
                 using var fontName = new Font("Segoe UI Bold", 10f);
                 using var brushName = new SolidBrush(TextHeader);
-                g.DrawString($"Cashier {s:D2}", fontName, brushName, new PointF(16, rowY + 16));
+                g.DrawString(cashierText, fontName, brushName, new PointF(16, rowY + 16));
 
-                // Status Indicator Dot
+                // Measure name to place dot dynamically with zero overlap
+                SizeF nameSize = g.MeasureString(cashierText, fontName);
+                int dotX = (int)(16 + nameSize.Width + 6);
+
                 using var dotBrush = new SolidBrush(ClrCustomer);
-                g.FillEllipse(dotBrush, 104, rowY + 22, 8, 8);
+                g.FillEllipse(dotBrush, dotX, rowY + 22, 8, 8);
 
                 // Utilization Label
                 using var fontUtilLbl = new Font("Segoe UI", 7.5f);
@@ -664,7 +665,7 @@ namespace ImtiazQueueSimulator.Controls
         }
 
         // ═══════════════════════════════════════════════════════════════════════
-        //  CONTINUOUS TIMELINE CANVAS PAINTER (STRICT 2 BLOCK TYPES)
+        //  CONTINUOUS TIMELINE CANVAS PAINTER (STRICT NO-OVERFLOW TYPOGRAPHY)
         // ═══════════════════════════════════════════════════════════════════════
 
         private void PaintTimelineCanvas(object? sender, PaintEventArgs e)
@@ -686,8 +687,6 @@ namespace ImtiazQueueSimulator.Controls
             }
 
             int ns = Math.Max(1, _result.NumServers);
-            int tW = (int)((cW - 40) * _zoomLevel);
-            tW = Math.Max(600, tW);
 
             double maxT = _result.AllCustomers
                 .Where(c => c.DepartureTime > 0)
@@ -696,13 +695,17 @@ namespace ImtiazQueueSimulator.Controls
                 .Max();
             if (maxT <= 0) maxT = Math.Max(1.0, _result.SimulationTime);
 
+            // Responsive Timeline Width (minimum 400px per simulation hour ensures zero text crowding)
+            int minPixelsPerHour = 400;
+            int desiredWidth = (int)(maxT * minPixelsPerHour * _zoomLevel);
+            int tW = Math.Max(cW - 40, desiredWidth);
+
             // ── A. TIME SCALE AXIS (15m Major Ticks, 5m Minor Ticks) ──────────
             using (var axPen = new Pen(BorderColor, 1.2f))
                 g.DrawLine(axPen, 0, AxisHeight, tW + 40, AxisHeight);
 
-            // Major ticks (15 mins = 0.25h) & Minor ticks (5 mins = 0.0833h)
-            double majorInterval = 0.25; // 15 mins
-            double minorInterval = 0.083333; // 5 mins
+            double majorInterval = 0.25;      // 15 mins
+            double minorInterval = 0.083333;  // 5 mins
 
             // Minor Ticks (Grid lines)
             for (double t = 0; t <= maxT + 0.001; t += minorInterval)
@@ -723,11 +726,11 @@ namespace ImtiazQueueSimulator.Controls
 
                 using var tickFont  = new Font("Segoe UI Semibold", 8.5f);
                 using var tickBrush = new SolidBrush(TextHeader);
-                var sf = new StringFormat { Alignment = StringAlignment.Center };
+                var sf = new StringFormat { Alignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap };
                 g.DrawString(timeStr, tickFont, tickBrush, new RectangleF(tx - 40, 14, 80, 20), sf);
             }
 
-            // ── B. CONTINUOUS TIMELINE (CUSTOMER & IDLE ONLY) ─────────────────
+            // ── B. CONTINUOUS TIMELINE ────────────────────────────────────────
             for (int s = 1; s <= ns; s++)
             {
                 if (_serverFilter > 0 && _serverFilter != s) continue;
@@ -801,37 +804,38 @@ namespace ImtiazQueueSimulator.Controls
                 }
             }
 
-            // Adaptive Typography - Responsive text based on block width
+            // Adaptive Typography — Strict No-Wrap to prevent vertical text collisions
             using var whiteBrush = new SolidBrush(Color.White);
-            if (bw >= 120)
+
+            if (bw >= 140)
             {
-                // Large: Customer Name, ID, Start -> End
+                // Large: Customer Name, ID, Start -> End (3 clean lines)
                 using var fontTitle = new Font("Segoe UI Bold", 7.8f);
                 using var fontSub   = new Font("Segoe UI Semibold", 6.8f);
 
-                var sf = new StringFormat { Alignment = StringAlignment.Near, Trimming = StringTrimming.EllipsisCharacter };
-                g.DrawString($"Customer {c.Id:D3}", fontTitle, whiteBrush, new RectangleF(bx + 6, taskY + 3,  bw - 10, 14), sf);
+                var sf = new StringFormat { Alignment = StringAlignment.Near, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
+                g.DrawString($"Customer {c.Id:D3}", fontTitle, whiteBrush, new RectangleF(bx + 6, taskY + 3,  bw - 10, 13), sf);
                 g.DrawString($"ID : C{c.Id:D3}",     fontSub,   whiteBrush, new RectangleF(bx + 6, taskY + 16, bw - 10, 12), sf);
                 g.DrawString($"{Customer.FormatTime(st)} → {Customer.FormatTime(et)}", fontSub, whiteBrush, new RectangleF(bx + 6, taskY + 28, bw - 10, 12), sf);
             }
-            else if (bw >= 70)
+            else if (bw >= 90)
             {
-                // Medium: Customer Name, ID
+                // Medium: Customer Name, ID (2 clean lines)
                 using var fontTitle = new Font("Segoe UI Bold", 7.5f);
                 using var fontSub   = new Font("Segoe UI Semibold", 6.8f);
 
-                var sf = new StringFormat { Alignment = StringAlignment.Near, Trimming = StringTrimming.EllipsisCharacter };
+                var sf = new StringFormat { Alignment = StringAlignment.Near, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
                 g.DrawString($"Customer {c.Id:D3}", fontTitle, whiteBrush, new RectangleF(bx + 5, taskY + 6,  bw - 8, 14), sf);
                 g.DrawString($"C{c.Id:D3}",          fontSub,   whiteBrush, new RectangleF(bx + 5, taskY + 22, bw - 8, 12), sf);
             }
-            else if (bw >= 35)
+            else if (bw >= 45)
             {
-                // Small: C001
+                // Small: C001 (1 centered line, NO-WRAP prevents C03/6 line break!)
                 using var fontCompact = new Font("Segoe UI Bold", 7.5f);
-                var sfCenter = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                var sfCenter = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap };
                 g.DrawString($"C{c.Id:D3}", fontCompact, whiteBrush, blockR, sfCenter);
             }
-            // Tiny: Blue rectangle only (no text overflow)
+            // Tiny (< 45px): Solid blue block only (no text overflow)
         }
 
         // ── Idle Block Renderer (Light Gray) ──────────────────────────────────
@@ -853,23 +857,23 @@ namespace ImtiazQueueSimulator.Controls
                 g.DrawPath(bPen, path);
             }
 
-            // Responsive Idle Text
             using var textBrush = new SolidBrush(ClrIdleText);
-            if (bw >= 80)
+            if (bw >= 120)
             {
                 using var fontTitle = new Font("Segoe UI Bold", 7.5f);
                 using var fontSub   = new Font("Segoe UI", 6.8f);
 
-                var sf = new StringFormat { Alignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
-                g.DrawString("Idle", fontTitle, textBrush, new RectangleF(bx + 4, taskY + 8,  bw - 8, 14), sf);
-                g.DrawString($"{Customer.FormatTime(st)} → {Customer.FormatTime(et)}", fontSub, textBrush, new RectangleF(bx + 4, taskY + 24, bw - 8, 12), sf);
+                var sf = new StringFormat { Alignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
+                g.DrawString("Idle", fontTitle, textBrush, new RectangleF(bx + 4, taskY + 6,  bw - 8, 14), sf);
+                g.DrawString($"{Customer.FormatTime(st)} → {Customer.FormatTime(et)}", fontSub, textBrush, new RectangleF(bx + 4, taskY + 22, bw - 8, 12), sf);
             }
-            else if (bw >= 35)
+            else if (bw >= 45)
             {
                 using var fontTitle = new Font("Segoe UI Semibold", 7.5f);
-                var sfCenter = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                var sfCenter = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, FormatFlags = StringFormatFlags.NoWrap };
                 g.DrawString("Idle", fontTitle, textBrush, blockR, sfCenter);
             }
+            // Tiny (< 45px): Solid light gray block only
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -1019,8 +1023,6 @@ namespace ImtiazQueueSimulator.Controls
             if (_result == null) return (null, null);
 
             int ns = Math.Max(1, _result.NumServers);
-            int tW = (int)((_canvasPanel.Width - 40) * _zoomLevel);
-            tW = Math.Max(600, tW);
 
             double maxT = _result.AllCustomers
                 .Where(c => c.DepartureTime > 0)
@@ -1028,6 +1030,10 @@ namespace ImtiazQueueSimulator.Controls
                 .DefaultIfEmpty(_result.SimulationTime)
                 .Max();
             if (maxT <= 0) maxT = 1;
+
+            int minPixelsPerHour = 400;
+            int desiredWidth = (int)(maxT * minPixelsPerHour * _zoomLevel);
+            int tW = Math.Max(_canvasPanel.Width - 40, desiredWidth);
 
             for (int s = 1; s <= ns; s++)
             {
@@ -1052,11 +1058,9 @@ namespace ImtiazQueueSimulator.Controls
                     double st = c.ServiceStartTime;
                     double et = c.DepartureTime > st ? c.DepartureTime : Math.Min(maxT, st + c.ServiceTime);
 
-                    // Check Idle block before customer
                     if (st > currentTime + 0.0001 && tAtMouse >= currentTime && tAtMouse <= st)
                         return (null, (s, currentTime, st));
 
-                    // Check Customer block
                     if (tAtMouse >= st && tAtMouse <= et)
                         return (c, null);
 
