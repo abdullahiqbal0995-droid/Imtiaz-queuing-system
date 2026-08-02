@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -8,13 +9,8 @@ using ImtiazQueueSimulator.Models;
 namespace ImtiazQueueSimulator.Forms
 {
     /// <summary>
-    /// Enterprise Queueing Models Comparison Table.
-    /// Features:
-    ///   - Dark Navy header bar (#0F172A), 52px header height
-    ///   - Soft blue badges for Model column, circular badge for N column
-    ///   - Status badges for Evaluation Method (⚡ Simulation vs 📘 Analytical)
-    ///   - 48px row height, soft zebra striping (#F8FAFC), sky blue hover selection (#EEF5FF)
-    ///   - Strict tabular numeric formatting (ρ 55.60%, Lq/L 4 decimals, Wq/W 2 decimals)
+    /// Queueing Models Performance Comparison Panel.
+    /// Distinguishes analytical steady-state stability from finite simulation observations.
     /// </summary>
     public class ComparisonPanel : UserControl
     {
@@ -24,38 +20,52 @@ namespace ImtiazQueueSimulator.Forms
         private TextBox _txtSimTime = null!;
         private DataGridView _grid = null!;
         private Label _lblStatus = null!;
+        private Label _lblWarning = null!;
+
+        // ── Design tokens ──────────────────────────────────────────────────────
+        private static readonly Color PageBg      = Color.FromArgb(244, 246, 250);
+        private static readonly Color CardBg      = Color.White;
+        private static readonly Color TextDark    = Color.FromArgb(15, 23, 42);
+        private static readonly Color TextMid     = Color.FromArgb(71, 85, 105);
+        private static readonly Color TextLight   = Color.FromArgb(100, 116, 139);
+        private static readonly Color Border      = Color.FromArgb(226, 232, 240);
+        private static readonly Color AccentBlue  = Color.FromArgb(29, 78, 216);
 
         public ComparisonPanel()
         {
-            BackColor = Color.FromArgb(244, 246, 250);
+            BackColor  = PageBg;
             AutoScroll = true;
             BuildUI();
         }
 
         private void BuildUI()
         {
+            Controls.Clear();
+
+            // ── Page Title ──
             var title = new Label
             {
                 Text      = "Queueing Models Performance Comparison",
                 Font      = new Font("Segoe UI Bold", 14f),
-                ForeColor = Color.FromArgb(15, 23, 42),
+                ForeColor = TextDark,
                 AutoSize  = true,
                 Location  = new Point(20, 16)
             };
             Controls.Add(title);
 
+            // ── Subtitle ──
             var desc = new Label
             {
                 Text      = "Analytical vs Simulation Results  |  Total Models Compared: 6",
                 Font      = new Font("Segoe UI Semibold", 9.5f),
-                ForeColor = Color.FromArgb(100, 116, 139),
+                ForeColor = TextLight,
                 AutoSize  = true,
                 Location  = new Point(20, title.Bottom + 4)
             };
             desc.MaximumSize = new Size(Math.Max(300, Width - 40), 0);
             Controls.Add(desc);
 
-            // Parameter input bar
+            // ── Parameters Bar ──
             int paramY = desc.Bottom + 12;
             var paramPanel = new FlowLayoutPanel
             {
@@ -75,21 +85,12 @@ namespace ImtiazQueueSimulator.Forms
                 using var path = RoundPath(r, 10);
                 using var bg = new SolidBrush(Color.White);
                 g.FillPath(bg, path);
-                using var pen = new Pen(Color.FromArgb(226, 232, 240), 1f);
+                using var pen = new Pen(Border, 1f);
                 g.DrawPath(pen, path);
             };
             Controls.Add(paramPanel);
 
-            _lblStatus = new Label
-            {
-                Text      = "Analytical vs Simulation Results  |  Total Models Compared: 6",
-                Font      = new Font("Segoe UI Semibold", 9f),
-                ForeColor = Color.FromArgb(100, 116, 139),
-                AutoSize  = true,
-                Location  = new Point(20, paramY + 60)
-            };
-            Controls.Add(_lblStatus);
-
+            // Add fields to parameters bar
             paramPanel.Controls.Add(MakeLabel("λ:"));
             _txtLambda = MakeTextBox("20");
             paramPanel.Controls.Add(_txtLambda);
@@ -128,11 +129,43 @@ namespace ImtiazQueueSimulator.Forms
             btnRun.Click += BtnRun_Click;
             paramPanel.Controls.Add(btnRun);
 
-            // Enterprise DataGridView Table
+            // ── Warning Label ──
+            _lblWarning = new Label
+            {
+                Text      = "",
+                Font      = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(220, 38, 38), // Warning Red
+                AutoSize  = true,
+                Location  = new Point(20, paramY + 60),
+                BackColor = Color.Transparent
+            };
+            Controls.Add(_lblWarning);
+
+            // ── Status Label ──
+            _lblStatus = new Label
+            {
+                Text      = "Ready to run comparisons.",
+                Font      = new Font("Segoe UI Semibold", 9f),
+                ForeColor = TextLight,
+                AutoSize  = true,
+                Location  = new Point(20, _lblWarning.Bottom + 6)
+            };
+            Controls.Add(_lblStatus);
+
+            // ── Explanation Note ──
+            var lblExplanation = new Label
+            {
+                Text      = "Analytical results represent steady-state queueing-theory predictions and require a stable system (ρ < 1). Simulation results are finite-horizon observations and may still be produced for unstable systems.",
+                Font      = new Font("Segoe UI Italic", 9f),
+                ForeColor = TextMid,
+                AutoSize  = false,
+                BackColor = Color.Transparent
+            };
+            Controls.Add(lblExplanation);
+
+            // ── Grid Setup ──
             _grid = new DataGridView
             {
-                Location = new Point(20, _lblStatus.Bottom + 12),
-                Size = new Size(Math.Max(300, Width - 40), Math.Max(100, Height - _lblStatus.Bottom - 30)),
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.None,
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
@@ -142,14 +175,15 @@ namespace ImtiazQueueSimulator.Forms
                 ReadOnly = true,
                 Font = new Font("Segoe UI", 9.5f),
                 RowTemplate = { Height = 48 },
-                GridColor = Color.FromArgb(226, 232, 240),
+                GridColor = Border,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 ColumnHeadersHeight = 52,
                 ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+                ShowCellToolTips = true,
                 ColumnHeadersDefaultCellStyle =
                 {
-                    BackColor = Color.FromArgb(15, 23, 42),       // Dark Navy Slate 900
+                    BackColor = Color.FromArgb(15, 23, 42),
                     ForeColor = Color.White,
                     Font = new Font("Segoe UI Bold", 9.5f),
                     Padding = new Padding(16, 0, 16, 0)
@@ -157,13 +191,13 @@ namespace ImtiazQueueSimulator.Forms
                 DefaultCellStyle =
                 {
                     ForeColor = Color.FromArgb(30, 41, 59),
-                    SelectionBackColor = Color.FromArgb(238, 245, 255), // Hover Sky Blue (#EEF5FF)
+                    SelectionBackColor = Color.FromArgb(238, 245, 255),
                     SelectionForeColor = Color.FromArgb(15, 23, 42),
                     Padding = new Padding(16, 0, 16, 0)
                 },
                 AlternatingRowsDefaultCellStyle =
                 {
-                    BackColor = Color.FromArgb(248, 250, 252),    // Soft Zebra (#F8FAFC)
+                    BackColor = Color.FromArgb(248, 250, 252),
                     SelectionBackColor = Color.FromArgb(238, 245, 255),
                     SelectionForeColor = Color.FromArgb(15, 23, 42)
                 },
@@ -171,20 +205,20 @@ namespace ImtiazQueueSimulator.Forms
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
             };
 
-            // Setup columns with matched Header and Cell Alignments
             _grid.Columns.AddRange(new DataGridViewColumn[]
             {
-                new DataGridViewTextBoxColumn { Name = "Model", HeaderText = "Model", MinimumWidth = 150, Width = 150 },
-                new DataGridViewTextBoxColumn { Name = "N", HeaderText = "N", MinimumWidth = 70, Width = 70 },
-                new DataGridViewTextBoxColumn { Name = "Type", HeaderText = "Evaluation Method", MinimumWidth = 200, Width = 200 },
+                new DataGridViewTextBoxColumn { Name = "Model", HeaderText = "Model", MinimumWidth = 110, Width = 110 },
+                new DataGridViewTextBoxColumn { Name = "N", HeaderText = "N", MinimumWidth = 60, Width = 60 },
+                new DataGridViewTextBoxColumn { Name = "Type", HeaderText = "Evaluation Method", MinimumWidth = 200, Width = 210 },
+                new DataGridViewTextBoxColumn { Name = "Stability", HeaderText = "Stability", MinimumWidth = 100, Width = 110 },
                 new DataGridViewTextBoxColumn { Name = "Rho", HeaderText = "ρ (Util)", MinimumWidth = 90, Width = 100 },
-                new DataGridViewTextBoxColumn { Name = "Lq", HeaderText = "Lq (Queue)", MinimumWidth = 100, Width = 120 },
-                new DataGridViewTextBoxColumn { Name = "L", HeaderText = "L (System)", MinimumWidth = 100, Width = 120 },
-                new DataGridViewTextBoxColumn { Name = "Wq", HeaderText = "Wq (min)", MinimumWidth = 100, Width = 125 },
-                new DataGridViewTextBoxColumn { Name = "W", HeaderText = "W (min)", MinimumWidth = 100, Width = 125 }
+                new DataGridViewTextBoxColumn { Name = "Lq", HeaderText = "Lq (Queue)", MinimumWidth = 100, Width = 115 },
+                new DataGridViewTextBoxColumn { Name = "L", HeaderText = "L (System)", MinimumWidth = 100, Width = 115 },
+                new DataGridViewTextBoxColumn { Name = "Wq", HeaderText = "Wq (min)", MinimumWidth = 100, Width = 120 },
+                new DataGridViewTextBoxColumn { Name = "W", HeaderText = "W (min)", MinimumWidth = 100, Width = 120 }
             });
 
-            // Force alignment configurations to match cell alignment and header cell alignment
+            // Set column alignments
             foreach (DataGridViewColumn col in _grid.Columns)
             {
                 if (col.Name == "Model" || col.Name == "Type")
@@ -192,7 +226,7 @@ namespace ImtiazQueueSimulator.Forms
                     col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleLeft;
                     col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
                 }
-                else if (col.Name == "N")
+                else if (col.Name == "N" || col.Name == "Stability")
                 {
                     col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -204,18 +238,32 @@ namespace ImtiazQueueSimulator.Forms
                 }
             }
 
+            // Set Tooltips on headers
+            _grid.Columns["Rho"].ToolTipText = "ρ (Utilization): Theoretical offered load for analytical rows, or observed cashier utilization for simulation rows.";
+            _grid.Columns["Lq"].ToolTipText = "Lq (Queue size): Average number of customers waiting in queue.";
+            _grid.Columns["L"].ToolTipText = "L (System size): Average number of customers in checkout system (queue + service).";
+            _grid.Columns["Wq"].ToolTipText = "Wq (Wait time): Average time spent waiting in checkout queue.";
+            _grid.Columns["W"].ToolTipText = "W (System time): Average total time spent in checkout area.";
+
             _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             _grid.CellPainting += Grid_CellPainting;
-
             Controls.Add(_grid);
 
+            // ── Responsive Layout updates ──
             Resize += (s, e) =>
             {
-                desc.MaximumSize = new Size(Math.Max(300, Width - 40), 0);
-                paramPanel.Width = Math.Max(300, Width - 40);
-                _lblStatus.Location = new Point(20, paramPanel.Bottom + 10);
-                _grid.Location = new Point(20, _lblStatus.Bottom + 10);
-                _grid.Size = new Size(Math.Max(300, Width - 40), Math.Max(100, Height - _lblStatus.Bottom - 30));
+                int availW = Math.Max(300, Width - 40);
+                desc.MaximumSize = new Size(availW, 0);
+                paramPanel.Width = availW;
+                
+                _lblWarning.Location = new Point(20, paramPanel.Bottom + 8);
+                _lblStatus.Location = new Point(20, _lblWarning.Bottom + 6);
+                
+                lblExplanation.Location = new Point(20, Height - 45);
+                lblExplanation.Size = new Size(availW, 36);
+
+                _grid.Location = new Point(20, _lblStatus.Bottom + 8);
+                _grid.Size = new Size(availW, Math.Max(100, lblExplanation.Top - _lblStatus.Bottom - 18));
             };
         }
 
@@ -225,7 +273,7 @@ namespace ImtiazQueueSimulator.Forms
 
             string colName = _grid.Columns[e.ColumnIndex].Name;
 
-            if (colName == "Model" || colName == "N" || colName == "Type")
+            if (colName == "Model" || colName == "N" || colName == "Type" || colName == "Stability")
             {
                 e.PaintBackground(e.CellBounds, true);
 
@@ -236,7 +284,7 @@ namespace ImtiazQueueSimulator.Forms
 
                 if (colName == "Model")
                 {
-                    // Soft Blue Badge for Model Column (150px col width)
+                    // Soft Blue Badge for Model Column
                     int badgeW = 90;
                     int badgeH = 26;
                     int bx = e.CellBounds.Left + 16;
@@ -256,7 +304,7 @@ namespace ImtiazQueueSimulator.Forms
                 }
                 else if (colName == "N")
                 {
-                    // Circular Badge for N Column (70px col width)
+                    // Circular Badge for N Column
                     int size = 26;
                     int bx = e.CellBounds.Left + (e.CellBounds.Width - size) / 2;
                     int by = e.CellBounds.Top + (e.CellBounds.Height - size) / 2;
@@ -274,15 +322,36 @@ namespace ImtiazQueueSimulator.Forms
                 }
                 else if (colName == "Type")
                 {
-                    // Status Badge for Evaluation Method (200px col width)
+                    // Status Badge for Evaluation Method
                     bool isSim = valStr.Contains("SIMULATION");
-                    Color bgClr = isSim ? Color.FromArgb(220, 252, 231) : Color.FromArgb(219, 234, 254);
-                    Color txtClr = isSim ? Color.FromArgb(21, 128, 61) : Color.FromArgb(29, 78, 216);
-                    Color bdrClr = isSim ? Color.FromArgb(134, 239, 172) : Color.FromArgb(147, 197, 253);
+                    bool isUnstable = valStr.Contains("UNSTABLE");
 
-                    string badgeText = isSim ? "⚡ Simulation" : "📘 Analytical";
+                    Color bgClr, txtClr, bdrClr;
+                    string badgeText;
 
-                    int badgeW = 125;
+                    if (isUnstable)
+                    {
+                        bgClr = Color.FromArgb(254, 242, 242);
+                        txtClr = Color.FromArgb(220, 38, 38);
+                        bdrClr = Color.FromArgb(254, 202, 202);
+                        badgeText = "⚠ Analytical - Unstable";
+                    }
+                    else if (isSim)
+                    {
+                        bgClr = Color.FromArgb(220, 252, 231);
+                        txtClr = Color.FromArgb(21, 128, 61);
+                        bdrClr = Color.FromArgb(134, 239, 172);
+                        badgeText = "⚡ Simulation";
+                    }
+                    else
+                    {
+                        bgClr = Color.FromArgb(219, 234, 254);
+                        txtClr = Color.FromArgb(29, 78, 216);
+                        bdrClr = Color.FromArgb(147, 197, 253);
+                        badgeText = "📘 Analytical";
+                    }
+
+                    int badgeW = 150;
                     int badgeH = 26;
                     int bx = e.CellBounds.Left + 16;
                     int by = e.CellBounds.Top + (e.CellBounds.Height - badgeH) / 2;
@@ -298,6 +367,31 @@ namespace ImtiazQueueSimulator.Forms
                     using var brush = new SolidBrush(txtClr);
                     var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                     g.DrawString(badgeText, font, brush, badgeR, sf);
+                }
+                else if (colName == "Stability")
+                {
+                    // Status Badge for Stability (Stable vs Unstable)
+                    bool isStable = valStr.Contains("Stable") && !valStr.Contains("Unstable");
+                    Color bgClr = isStable ? Color.FromArgb(240, 253, 244) : Color.FromArgb(254, 242, 242);
+                    Color txtClr = isStable ? Color.FromArgb(22, 163, 74) : Color.FromArgb(220, 38, 38);
+                    Color bdrClr = isStable ? Color.FromArgb(187, 247, 208) : Color.FromArgb(254, 202, 202);
+
+                    int badgeW = 90;
+                    int badgeH = 26;
+                    int bx = e.CellBounds.Left + (e.CellBounds.Width - badgeW) / 2;
+                    int by = e.CellBounds.Top + (e.CellBounds.Height - badgeH) / 2;
+                    var badgeR = new Rectangle(bx, by, badgeW, badgeH);
+
+                    using var path = RoundPath(badgeR, 13);
+                    using var bg = new SolidBrush(bgClr);
+                    using var pen = new Pen(bdrClr, 1f);
+                    g.FillPath(bg, path);
+                    g.DrawPath(pen, path);
+
+                    using var font = new Font("Segoe UI Semibold", 8.8f);
+                    using var brush = new SolidBrush(txtClr);
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString(valStr, font, brush, badgeR, sf);
                 }
 
                 // Light separator line
@@ -331,6 +425,18 @@ namespace ImtiazQueueSimulator.Forms
             }
             int n = (int)_nudServers.Value;
 
+            // Immediate Stability/Instability warning checks
+            string warningText = "";
+            if (lambda >= mu)
+            {
+                warningText += "⚠ M/M/1, M/G/1, G/G/1 are unstable because λ ≥ μ. ";
+            }
+            if (lambda >= n * mu)
+            {
+                warningText += $"⚠ M/M/N, M/G/N, G/G/N are unstable because λ ≥ Nμ (λ ≥ {n * mu}). ";
+            }
+            _lblWarning.Text = warningText;
+
             _grid.Rows.Clear();
             _lblStatus.Text = "Running comparisons across all 6 models...";
             Application.DoEvents();
@@ -341,7 +447,7 @@ namespace ImtiazQueueSimulator.Forms
             {
                 int servers = model.Contains("/N") ? n : 1;
 
-                // Analytical
+                // Analytical solving
                 SimulationResult? analytical = model switch
                 {
                     "M/M/1" => AnalyticalSolver.SolveMM1(lambda, mu),
@@ -351,20 +457,41 @@ namespace ImtiazQueueSimulator.Forms
                     _ => null
                 };
 
-                if (analytical != null && !double.IsNaN(analytical.AnalyticalLq))
+                if (analytical != null)
                 {
-                    int idx = _grid.Rows.Add(
-                        model, servers,
-                        model == "G/G/1" ? "ANALYTICAL (Approx)" : "ANALYTICAL",
-                        FmtPct(analytical.AnalyticalRho),
-                        FmtVal(analytical.AnalyticalLq),
-                        FmtVal(analytical.AnalyticalL),
-                        FmtMin(analytical.AnalyticalWq),
-                        FmtMin(analytical.AnalyticalW)
-                    );
+                    double theoreticalRho = model.Contains("/N") ? (lambda / (servers * mu)) : (lambda / mu);
+
+                    if (theoreticalRho >= 1)
+                    {
+                        // Unstable row
+                        _grid.Rows.Add(
+                            model, servers,
+                            "ANALYTICAL — UNSTABLE",
+                            "⚠ Unstable",
+                            FmtPct(theoreticalRho),
+                            "Unstable",
+                            "Unstable",
+                            "Unstable",
+                            "Unstable"
+                        );
+                    }
+                    else
+                    {
+                        // Stable row
+                        _grid.Rows.Add(
+                            model, servers,
+                            model == "G/G/1" ? "ANALYTICAL (Approx)" : "ANALYTICAL",
+                            "✓ Stable",
+                            FmtPct(analytical.AnalyticalRho),
+                            FmtVal(analytical.AnalyticalLq),
+                            FmtVal(analytical.AnalyticalL),
+                            FmtMin(analytical.AnalyticalWq),
+                            FmtMin(analytical.AnalyticalW)
+                        );
+                    }
                 }
 
-                // Simulation
+                // Simulation run
                 var engine = new SimulationEngine
                 {
                     Lambda = lambda, Mu = mu, NumServers = servers,
@@ -373,8 +500,13 @@ namespace ImtiazQueueSimulator.Forms
                     ServiceDistribution = "Exponential"
                 };
                 var simResult = engine.RunAll();
-                int simIdx = _grid.Rows.Add(
+
+                double theoreticalSimRho = model.Contains("/N") ? (lambda / (servers * mu)) : (lambda / mu);
+                string simStability = theoreticalSimRho >= 1 ? "⚠ Unstable" : "✓ Stable";
+
+                _grid.Rows.Add(
                     model, servers, "SIMULATION",
+                    simStability,
                     FmtPct(simResult.SimRho),
                     FmtVal(simResult.SimLq),
                     FmtVal(simResult.SimL),
