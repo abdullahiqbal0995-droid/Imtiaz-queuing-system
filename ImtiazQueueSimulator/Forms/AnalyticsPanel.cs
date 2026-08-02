@@ -4,14 +4,14 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
+using ImtiazQueueSimulator.Controls;
 using ImtiazQueueSimulator.Models;
 
 namespace ImtiazQueueSimulator.Forms
 {
     /// <summary>
-    /// Executive Analytics Panel featuring responsive GDI+ custom-drawn charts.
-    /// Includes responsive 2-column layout, full vertical scrolling, zero text overlap,
-    /// precise graph plot clipping, and dynamic Server Activity Gantt Charts (1 track per cashier).
+    /// Executive Analytics Panel featuring responsive GDI+ custom-drawn charts
+    /// and the Enterprise Gantt Timeline Dashboard (EnterpriseGanttControl).
     /// </summary>
     public class AnalyticsPanel : UserControl
     {
@@ -25,9 +25,7 @@ namespace ImtiazQueueSimulator.Forms
         private Panel _chartPanel3 = null!;
         private Panel _chartPanel4 = null!;
         private Panel _chartPanel5 = null!;
-        private Panel _chartPanel6 = null!; // Gantt Chart
-        private ToolTip _ganttToolTip = new ToolTip();
-        private Customer? _lastHoveredCustomer = null;
+        private EnterpriseGanttControl _ganttControl = null!;
 
         // ── Design tokens ──────────────────────────────────────────────────────
         private static readonly Color PageBg      = Color.FromArgb(244, 246, 250);
@@ -85,28 +83,31 @@ namespace ImtiazQueueSimulator.Forms
             _mainContainer.Controls.Add(_subTitleLabel);
             y += 42;
 
-            // ── 6 Chart Panels ─────────────────────────────────────────────────
+            // ── 5 Metric Chart Panels ──────────────────────────────────────────
             _chartPanel1 = CreateChartPanel("Queue Length vs Time");
             _chartPanel2 = CreateChartPanel("Customers in System vs Time");
             _chartPanel3 = CreateChartPanel("Waiting Time Distribution");
             _chartPanel4 = CreateChartPanel("Server Utilization");
             _chartPanel5 = CreateChartPanel("Cumulative Arrivals vs Departures");
-            _chartPanel6 = CreateChartPanel("Server Activity Timeline (Gantt Chart)");
 
             _chartPanel1.Paint += PaintQueueLengthChart;
             _chartPanel2.Paint += PaintSystemSizeChart;
             _chartPanel3.Paint += PaintWaitingTimeChart;
             _chartPanel4.Paint += PaintUtilizationChart;
             _chartPanel5.Paint += PaintArrivalDepartureChart;
-            _chartPanel6.Paint += PaintGanttChart;
-            _chartPanel6.MouseMove += ChartPanel6_MouseMove;
 
             _mainContainer.Controls.Add(_chartPanel1);
             _mainContainer.Controls.Add(_chartPanel2);
             _mainContainer.Controls.Add(_chartPanel3);
             _mainContainer.Controls.Add(_chartPanel4);
             _mainContainer.Controls.Add(_chartPanel5);
-            _mainContainer.Controls.Add(_chartPanel6);
+
+            // ── 6. Enterprise Gantt Timeline Dashboard ────────────────────────
+            _ganttControl = new EnterpriseGanttControl
+            {
+                Size = new Size(1000, 580)
+            };
+            _mainContainer.Controls.Add(_ganttControl);
 
             Resize += (s, e) => PerformCustomLayout();
             PerformCustomLayout();
@@ -160,7 +161,7 @@ namespace ImtiazQueueSimulator.Forms
 
         private void PerformCustomLayout()
         {
-            if (_mainContainer == null || _chartPanel1 == null) return;
+            if (_mainContainer == null || _chartPanel1 == null || _ganttControl == null) return;
 
             int availW = Math.Max(400, ClientSize.Width - 40);
             _mainContainer.Width = availW;
@@ -172,14 +173,14 @@ namespace ImtiazQueueSimulator.Forms
             int chartW = isWide ? (availW - gap) / 2 : availW;
 
             int numServers = _result != null && _result.NumServers > 0 ? _result.NumServers : 1;
-            int ganttH = Math.Max(290, 85 + numServers * 45);
+            int ganttH = Math.Max(520, 280 + numServers * 94);
 
             _chartPanel1.Size = new Size(chartW, chartH);
             _chartPanel2.Size = new Size(chartW, chartH);
             _chartPanel3.Size = new Size(chartW, chartH);
             _chartPanel4.Size = new Size(chartW, chartH);
             _chartPanel5.Size = new Size(chartW, chartH);
-            _chartPanel6.Size = new Size(isWide ? availW : chartW, ganttH);
+            _ganttControl.Size = new Size(availW, ganttH);
 
             int startY = 74;
 
@@ -198,9 +199,9 @@ namespace ImtiazQueueSimulator.Forms
                 int r3Y = r2Y + chartH + gap;
                 _chartPanel5.Location = new Point(0, r3Y);
 
-                // Row 4: Gantt Chart (Spans full width for optimal timeline resolution!)
+                // Row 4: Enterprise Gantt Chart Dashboard (Spans full width!)
                 int r4Y = r3Y + chartH + gap;
-                _chartPanel6.Location = new Point(0, r4Y);
+                _ganttControl.Location = new Point(0, r4Y);
 
                 _mainContainer.Height = r4Y + ganttH + 30;
             }
@@ -213,7 +214,7 @@ namespace ImtiazQueueSimulator.Forms
                 _chartPanel3.Location = new Point(0, currY); currY += chartH + gap;
                 _chartPanel4.Location = new Point(0, currY); currY += chartH + gap;
                 _chartPanel5.Location = new Point(0, currY); currY += chartH + gap;
-                _chartPanel6.Location = new Point(0, currY); currY += ganttH + gap;
+                _ganttControl.Location = new Point(0, currY); currY += ganttH + gap;
 
                 _mainContainer.Height = currY + 10;
             }
@@ -226,13 +227,14 @@ namespace ImtiazQueueSimulator.Forms
         public void LoadResults(SimulationResult result)
         {
             _result = result;
+            _ganttControl.LoadResults(result);
             PerformCustomLayout();
+
             _chartPanel1.Invalidate();
             _chartPanel2.Invalidate();
             _chartPanel3.Invalidate();
             _chartPanel4.Invalidate();
             _chartPanel5.Invalidate();
-            _chartPanel6.Invalidate();
         }
 
         // ── Chart rendering ────────────────────────────────────────────────────
@@ -465,253 +467,6 @@ namespace ImtiazQueueSimulator.Forms
             g.DrawString("Departures", lf, new SolidBrush(TextDark), legX + 22, legY + 19);
 
             DrawAxesAndLabels(g, area, "Time (hours)", "Total Customers");
-        }
-
-        private void PaintGanttChart(object? sender, PaintEventArgs e)
-        {
-            var panel = (Panel)sender!;
-            var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-
-            // Plot area with 90px left margin for "Cashier 01" track labels
-            var area = new Rectangle(90, 48, Math.Max(50, panel.Width - 115), Math.Max(50, panel.Height - 105));
-
-            if (_result == null || _result.AllCustomers.Count == 0)
-            {
-                DrawEmptyState(g, area, "Run a simulation to view the Server Activity Gantt Chart.");
-                return;
-            }
-
-            int numServers = Math.Max(1, _result.NumServers);
-            double maxTime = _result.AllCustomers.Where(c => c.Status == "Completed" || c.DepartureTime > 0)
-                                                 .Select(c => c.DepartureTime)
-                                                 .DefaultIfEmpty(_result.SimulationTime)
-                                                 .Max();
-            if (maxTime <= 0) maxTime = Math.Max(1.0, _result.SimulationTime);
-
-            // Draw vertical time grid lines and bottom timestamps (with 80px label width preventing truncation)
-            DrawGanttBackgroundGrid(g, area, maxTime);
-
-            int trackH = area.Height / numServers;
-
-            Color[] barColors = new Color[]
-            {
-                Color.FromArgb(37, 99, 235),   // Blue
-                Color.FromArgb(16, 185, 129),  // Emerald Green
-                Color.FromArgb(124, 58, 237),  // Purple
-                Color.FromArgb(217, 119, 6),   // Amber
-                Color.FromArgb(236, 72, 153),  // Pink
-                Color.FromArgb(14, 165, 233)   // Sky Blue
-            };
-
-            var sfRight  = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center };
-            var sfLeft   = new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center };
-            var sfCenter = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
-
-            for (int s = 1; s <= numServers; s++)
-            {
-                int trackY = area.Y + (s - 1) * trackH;
-                int barY   = trackY + Math.Max(3, (trackH - 28) / 2);
-                int barH   = Math.Min(28, trackH - 6);
-
-                // 1. Cashier track label on left
-                using (var lblFont = new Font("Segoe UI Semibold", 8.5f))
-                using (var lblBrush = new SolidBrush(TextDark))
-                {
-                    g.DrawString($"Cashier {s:D2}", lblFont, lblBrush,
-                        new RectangleF(area.X - 85, trackY, 78, trackH), sfRight);
-                }
-
-                // 2. Idle background strip (Light Gray Strip)
-                var trackRect = new Rectangle(area.X, barY, area.Width, barH);
-                using (var idleBrush = new SolidBrush(Color.FromArgb(248, 250, 252)))
-                {
-                    using var path = RoundPath(trackRect, 4);
-                    g.FillPath(idleBrush, path);
-                }
-                using (var borderPen = new Pen(Color.FromArgb(226, 232, 240), 1f))
-                {
-                    using var path = RoundPath(trackRect, 4);
-                    g.DrawPath(borderPen, path);
-                }
-
-                // 3. Busy Service Blocks for Customers served by this cashier
-                int serverId = s;
-                var serverCustomers = _result.AllCustomers
-                    .Where(c => c.AssignedServer == serverId && (c.Status == "Completed" || c.DepartureTime > 0 || c.ServiceStartTime > 0))
-                    .OrderBy(c => c.ServiceStartTime)
-                    .ToList();
-
-                foreach (var c in serverCustomers)
-                {
-                    double startT = c.ServiceStartTime;
-                    double endT   = c.DepartureTime > startT ? c.DepartureTime : Math.Min(maxTime, startT + c.ServiceTime);
-                    if (endT <= startT) continue;
-
-                    float bx1 = area.X + (float)(startT / maxTime * area.Width);
-                    float bx2 = area.X + (float)(endT / maxTime * area.Width);
-                    float bw  = Math.Max(2f, bx2 - bx1);
-
-                    var blockRect = new RectangleF(bx1, barY, bw, barH);
-
-                    Color color = barColors[(c.Id - 1) % barColors.Length];
-
-                    using (var blockBrush = new SolidBrush(Color.FromArgb(210, color)))
-                    {
-                        if (bw > 6)
-                        {
-                            using var path = RoundPath(Rectangle.Round(blockRect), 3);
-                            g.FillPath(blockBrush, path);
-                        }
-                        else
-                        {
-                            g.FillRectangle(blockBrush, blockRect);
-                        }
-                    }
-
-                    using (var borderPen = new Pen(color, 1f))
-                    {
-                        if (bw > 6)
-                        {
-                            using var path = RoundPath(Rectangle.Round(blockRect), 3);
-                            g.DrawPath(borderPen, path);
-                        }
-                        else
-                        {
-                            g.DrawRectangle(borderPen, blockRect.X, blockRect.Y, blockRect.Width, blockRect.Height);
-                        }
-                    }
-
-                    // Render Arrival Time on Left, Customer ID in Center, Departure Time on Right ONLY when width permits!
-                    // If bw >= 150px: draw Arrival (left), Customer ID (center), Departure (right) with zero overlap.
-                    // If 40px <= bw < 150px: draw Customer ID ONLY (centered).
-                    // If bw < 40px: clean solid block (no text overlap/clutter).
-                    if (bw >= 150)
-                    {
-                        using var txtFont = new Font("Segoe UI Bold", 7.5f);
-                        using var txtBrush = new SolidBrush(Color.White);
-
-                        // Left: Arrival Time (e.g. 00:04:48)
-                        string arrTime = Customer.FormatTime(c.ArrivalTime);
-                        g.DrawString(arrTime, txtFont, txtBrush, new RectangleF(bx1 + 6, barY, 48, barH), sfLeft);
-
-                        // Center: Customer ID (e.g. C015)
-                        g.DrawString($"C{c.Id:D3}", txtFont, txtBrush, blockRect, sfCenter);
-
-                        // Right: Departure Time (e.g. 00:06:34)
-                        string depTime = Customer.FormatTime(c.DepartureTime);
-                        g.DrawString(depTime, txtFont, txtBrush, new RectangleF(bx1 + bw - 54, barY, 48, barH), sfRight);
-                    }
-                    else if (bw >= 40)
-                    {
-                        using var txtFont = new Font("Segoe UI Bold", 7.5f);
-                        using var txtBrush = new SolidBrush(Color.White);
-                        // Center: Customer ID (clean, zero overlap!)
-                        g.DrawString($"C{c.Id:D3}", txtFont, txtBrush, blockRect, sfCenter);
-                    }
-                }
-            }
-
-            // Legend (Busy Service vs Idle Track)
-            int legX = area.X + 10;
-            int legY = area.Y + 6;
-            var legBox = new Rectangle(legX, legY, 125, 24);
-            using (var legBg = new SolidBrush(Color.FromArgb(235, 255, 255, 255)))
-                g.FillRectangle(legBg, legBox);
-            using (var legPen = new Pen(Border, 1f))
-                g.DrawRectangle(legPen, legBox);
-
-            using var legFont = new Font("Segoe UI Semibold", 8f);
-            g.FillRectangle(new SolidBrush(Color.FromArgb(37, 99, 235)), legX + 6, legY + 7, 10, 10);
-            g.DrawString("Busy (Service)", legFont, new SolidBrush(TextDark), legX + 20, legY + 4);
-
-            DrawAxesAndLabels(g, area, "Simulation Time (hours)", "Servers");
-        }
-
-        private void ChartPanel6_MouseMove(object? sender, MouseEventArgs e)
-        {
-            if (_chartPanel6 == null) return;
-
-            if (_result == null || _result.AllCustomers.Count == 0)
-            {
-                _ganttToolTip.Hide(_chartPanel6);
-                _lastHoveredCustomer = null;
-                return;
-            }
-
-            var area = new Rectangle(90, 48, Math.Max(50, _chartPanel6.Width - 115), Math.Max(50, _chartPanel6.Height - 105));
-            if (!area.Contains(e.Location))
-            {
-                _ganttToolTip.Hide(_chartPanel6);
-                _lastHoveredCustomer = null;
-                return;
-            }
-
-            int numServers = Math.Max(1, _result.NumServers);
-            double maxTime = _result.AllCustomers.Where(c => c.Status == "Completed" || c.DepartureTime > 0)
-                                                 .Select(c => c.DepartureTime)
-                                                 .DefaultIfEmpty(_result.SimulationTime)
-                                                 .Max();
-            if (maxTime <= 0) maxTime = Math.Max(1.0, _result.SimulationTime);
-
-            int trackH = area.Height / numServers;
-            int serverIndex = (e.Y - area.Y) / trackH + 1;
-
-            if (serverIndex < 1 || serverIndex > numServers)
-            {
-                _ganttToolTip.Hide(_chartPanel6);
-                _lastHoveredCustomer = null;
-                return;
-            }
-
-            double timeAtMouse = (e.X - area.X) / (double)area.Width * maxTime;
-
-            var hoveredCust = _result.AllCustomers.FirstOrDefault(c =>
-                c.AssignedServer == serverIndex &&
-                c.ServiceStartTime <= timeAtMouse &&
-                (c.DepartureTime > c.ServiceStartTime ? c.DepartureTime : maxTime) >= timeAtMouse);
-
-            if (hoveredCust != null)
-            {
-                if (hoveredCust != _lastHoveredCustomer)
-                {
-                    _lastHoveredCustomer = hoveredCust;
-                    string tipText =
-                        $"👤 {hoveredCust.Name} (Cashier {serverIndex:D2})\n" +
-                        $"⏱ Store Arrival: {Customer.FormatTime(hoveredCust.ArrivalTime)}\n" +
-                        $"⚡ Service Start: {Customer.FormatTime(hoveredCust.ServiceStartTime)}\n" +
-                        $"🏁 Departure:    {Customer.FormatTime(hoveredCust.DepartureTime)}\n" +
-                        $"⏳ Wait Time:    {Customer.FormatDuration(hoveredCust.WaitingTime)}\n" +
-                        $"💳 Service Time: {Customer.FormatDuration(hoveredCust.ServiceTime)}";
-
-                    _ganttToolTip.Show(tipText, _chartPanel6, e.X + 15, e.Y + 15, 3000);
-                }
-            }
-            else
-            {
-                _ganttToolTip.Hide(_chartPanel6);
-                _lastHoveredCustomer = null;
-            }
-        }
-
-        private void DrawGanttBackgroundGrid(Graphics g, Rectangle area, double maxTime)
-        {
-            using var gridPen = new Pen(GridLinePen, 1f) { DashStyle = DashStyle.Dash };
-            using var font = new Font("Segoe UI", 7.5f);
-            using var brush = new SolidBrush(TextLight);
-
-            int numTicks = 5;
-            for (int i = 0; i <= numTicks; i++)
-            {
-                float x = area.X + (float)i / numTicks * area.Width;
-                g.DrawLine(gridPen, x, area.Y, x, area.Bottom);
-
-                double t = (double)i / numTicks * maxTime;
-                string timeStr = Customer.FormatTime(t);
-                // 80px label width prevents 04:33:12 truncation to 04:33:1
-                g.DrawString(timeStr, font, brush, new RectangleF(x - 40, area.Bottom + 4, 80, 16),
-                    new StringFormat { Alignment = StringAlignment.Center });
-            }
         }
 
         private void DrawLineChart(Graphics g, Rectangle area, List<(double X, double Y)> data,
