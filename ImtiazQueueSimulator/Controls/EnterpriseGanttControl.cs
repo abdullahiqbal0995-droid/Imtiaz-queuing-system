@@ -11,48 +11,57 @@ using ImtiazQueueSimulator.Models;
 namespace ImtiazQueueSimulator.Controls
 {
     /// <summary>
-    /// Enterprise-grade Gantt Timeline Dashboard for Queueing Simulation.
-    /// Modeled after Azure Monitor, Grafana, Jira Timeline & Ant Design Pro.
+    /// Senior Architect-grade Enterprise Gantt Timeline Control.
     /// Features:
-    ///   - Interactive Top Toolbar with Zoom, Fit, PNG Export & Fullscreen mode
-    ///   - Wrapping Status Legend Bar
-    ///   - Pinned Left Server Column with Live Utilization Badges
-    ///   - Sticky Top Time Axis with subtle grid lines
-    ///   - Custom-drawn 34px rounded Gantt blocks (Row H: 70px, Gap: 24px)
-    ///   - Formatted block labels (C001, 00:03 → 00:08) with zero text overlap
-    ///   - Interactive Hover Tooltips & Click-to-Open Customer Detail Modal
-    ///   - Bottom KPI Summary Cards
+    ///   - Modular Card Sections (Header, Toolbar, Legend, Timeline Canvas, Summary Cards, Help Card)
+    ///   - Pinned Server Column on Left (Scrolling timeline, sticky labels with Utilization %)
+    ///   - Dynamic Sticky Time Axis (5 / 10 / 15 min ticks)
+    ///   - 70px Row Height, 34px Activity Bar Height, 8px Radius, Min 12px Visible Width
+    ///   - Customer Search Filter & Server Filter
+    ///   - Zoom (+, -, Fit, Reset), Export PNG, Fullscreen Mode
+    ///   - Rich Hover Tooltips & Click-to-Open Customer Detail Modal
+    ///   - 8 Executive Metric Summary Cards
     /// </summary>
     public class EnterpriseGanttControl : UserControl
     {
         private SimulationResult? _result;
         private float _zoomLevel = 1.0f;
+        private string _searchQuery = "";
+        private int _selectedServerFilter = 0; // 0 = All Servers
         private Customer? _hoveredCustomer = null;
         private ToolTip _tooltip = new ToolTip();
 
-        // Control Layout Structure
-        private Panel _toolbarPanel = null!;
-        private Panel _legendPanel = null!;
+        // ── Card Containers ────────────────────────────────────────────────────
+        private Panel _mainScrollContainer = null!;
+        private Panel _headerCard = null!;
+        private Panel _toolbarCard = null!;
+        private Panel _legendCard = null!;
+        private Panel _timelineCard = null!;
         private Panel _ganttCanvas = null!;
-        private Panel _summaryCardsPanel = null!;
+        private FlowLayoutPanel _summaryCardsPanel = null!;
+        private Panel _helpCard = null!;
 
-        // Toolbar Buttons
+        // ── Toolbar Controls ───────────────────────────────────────────────────
         private Button _btnZoomIn = null!;
         private Button _btnZoomOut = null!;
         private Button _btnFit = null!;
+        private Button _btnReset = null!;
         private Button _btnExport = null!;
         private Button _btnFullScreen = null!;
+        private TextBox _txtSearch = null!;
+        private ComboBox _cmbServerFilter = null!;
 
-        // Summary Card Labels
+        // ── Summary KPI Metric Cards ───────────────────────────────────────────
         private MetricCard _cardSimTime = null!;
-        private MetricCard _cardServers = null!;
-        private MetricCard _cardAvgUtil = null!;
         private MetricCard _cardServed = null!;
-        private MetricCard _cardIdleTime = null!;
         private MetricCard _cardAvgWait = null!;
         private MetricCard _cardAvgSvc = null!;
+        private MetricCard _cardIdleTime = null!;
+        private MetricCard _cardPeakQueue = null!;
+        private MetricCard _cardAvgUtil = null!;
+        private MetricCard _cardThroughput = null!;
 
-        // Design Tokens
+        // ── Design System Tokens ───────────────────────────────────────────────
         private static readonly Color PageBg       = Color.FromArgb(244, 246, 250);
         private static readonly Color CardBg       = Color.White;
         private static readonly Color TextDark     = Color.FromArgb(30, 41, 59);    // Slate 800
@@ -61,15 +70,16 @@ namespace ImtiazQueueSimulator.Controls
         private static readonly Color BorderColor  = Color.FromArgb(226, 232, 240); // Slate 200
         private static readonly Color TrackBg      = Color.FromArgb(248, 250, 252); // Slate 50
         private static readonly Color GridLinePen  = Color.FromArgb(241, 245, 249); // Slate 100
+        private static readonly Color HighlightGold = Color.FromArgb(234, 179, 8);   // Amber 500
 
-        // Status Palette
-        private static readonly Color ColorBusy      = Color.FromArgb(37, 99, 235);   // Blue (#2563EB)
-        private static readonly Color ColorIdle      = Color.FromArgb(226, 232, 240); // Gray (#E2E8F0)
-        private static readonly Color ColorWaiting   = Color.FromArgb(217, 119, 6);   // Orange/Amber (#D97706)
-        private static readonly Color ColorCompleted = Color.FromArgb(16, 185, 129);  // Green (#10B981)
-        private static readonly Color ColorSetup     = Color.FromArgb(124, 58, 237);  // Purple (#7C3AED)
-        private static readonly Color ColorBreak     = Color.FromArgb(236, 72, 153);  // Pink (#EC4899)
-        private static readonly Color ColorOverload  = Color.FromArgb(220, 38, 38);   // Red (#DC2626)
+        // Palette
+        private static readonly Color ColorBusy      = Color.FromArgb(37, 99, 235);   // Blue
+        private static readonly Color ColorIdle      = Color.FromArgb(226, 232, 240); // Gray
+        private static readonly Color ColorWaiting   = Color.FromArgb(217, 119, 6);   // Orange
+        private static readonly Color ColorCompleted = Color.FromArgb(16, 185, 129);  // Green
+        private static readonly Color ColorSetup     = Color.FromArgb(124, 58, 237);  // Purple
+        private static readonly Color ColorBreak     = Color.FromArgb(236, 72, 153);  // Pink
+        private static readonly Color ColorOverload  = Color.FromArgb(220, 38, 38);   // Red
 
         public event Action<Customer>? OnCustomerSelected;
 
@@ -85,134 +95,137 @@ namespace ImtiazQueueSimulator.Controls
         {
             Controls.Clear();
 
-            int y = 0;
-
-            // ── 1. TOP TOOLBAR ────────────────────────────────────────────────
-            _toolbarPanel = new Panel
+            _mainScrollContainer = new Panel
             {
-                Location  = new Point(0, y),
-                Height    = 60,
-                Dock      = DockStyle.Top,
-                BackColor = CardBg
+                Location   = new Point(0, 0),
+                Dock       = DockStyle.Fill,
+                AutoScroll = true,
+                BackColor  = PageBg,
+                Padding    = new Padding(24)
             };
-            _toolbarPanel.Paint += (s, e) =>
-            {
-                using var pen = new Pen(BorderColor, 1f);
-                e.Graphics.DrawLine(pen, 0, _toolbarPanel.Height - 1, _toolbarPanel.Width, _toolbarPanel.Height - 1);
-            };
-            Controls.Add(_toolbarPanel);
+            Controls.Add(_mainScrollContainer);
 
-            var titleFlow = new FlowLayoutPanel
-            {
-                Location      = new Point(20, 10),
-                Size          = new Size(500, 42),
-                FlowDirection = FlowDirection.TopDown,
-                WrapContents  = false,
-                BackColor     = Color.Transparent
-            };
-            _toolbarPanel.Controls.Add(titleFlow);
+            int y = 20;
 
+            // ── 1. HEADER CARD ────────────────────────────────────────────────
+            _headerCard = CreateSectionCard(y, 70);
             var lblTitle = new Label
             {
-                Text      = "📊 SERVER ACTIVITY TIMELINE (GANTT CHART)",
-                Font      = new Font("Segoe UI", 12f, FontStyle.Bold),
+                Text      = "📊 SERVER ACTIVITY TIMELINE (GANTT MONITORING DASHBOARD)",
+                Font      = new Font("Segoe UI", 13f, FontStyle.Bold),
                 ForeColor = TextDark,
                 AutoSize  = true,
-                Margin    = new Padding(0, 0, 0, 2)
+                Location  = new Point(20, 12)
             };
-            titleFlow.Controls.Add(lblTitle);
+            _headerCard.Controls.Add(lblTitle);
 
             var lblSub = new Label
             {
-                Text      = "Visualize server utilization and customer service activity.",
-                Font      = new Font("Segoe UI", 8.5f),
+                Text      = "Enterprise visualization of server utilization, customer checkout activity, and waiting metrics.",
+                Font      = new Font("Segoe UI", 9f),
                 ForeColor = TextMuted,
                 AutoSize  = true,
-                Margin    = new Padding(0)
+                Location  = new Point(20, 38)
             };
-            titleFlow.Controls.Add(lblSub);
+            _headerCard.Controls.Add(lblSub);
+            _mainScrollContainer.Controls.Add(_headerCard);
+            y += 70 + 24;
 
-            // Action Buttons Flow (Right Aligned)
-            var actionFlow = new FlowLayoutPanel
+            // ── 2. TOOLBAR & FILTERS CARD ─────────────────────────────────────
+            _toolbarCard = CreateSectionCard(y, 64);
+
+            var toolFlow = new FlowLayoutPanel
             {
-                Anchor        = AnchorStyles.Top | AnchorStyles.Right,
+                Location      = new Point(16, 13),
+                Height        = 40,
+                Width         = _toolbarCard.Width - 32,
+                Anchor        = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents  = false,
-                AutoSize      = true,
                 BackColor     = Color.Transparent
             };
-            _toolbarPanel.Controls.Add(actionFlow);
+            _toolbarCard.Controls.Add(toolFlow);
 
-            _btnZoomIn     = CreateToolbarButton("🔍 + Zoom In",   (s, e) => ChangeZoom(1.25f));
-            _btnZoomOut    = CreateToolbarButton("🔍 - Zoom Out",  (s, e) => ChangeZoom(0.8f));
-            _btnFit        = CreateToolbarButton("⤢ Fit View",     (s, e) => ResetZoom());
-            _btnExport     = CreateToolbarButton("📷 Export PNG",  (s, e) => ExportPNG());
-            _btnFullScreen = CreateToolbarButton("⛶ Full Screen", (s, e) => ToggleFullScreen());
+            _btnZoomIn     = CreateButton("🔍 + Zoom In",   (s, e) => ChangeZoom(1.25f));
+            _btnZoomOut    = CreateButton("🔍 - Zoom Out",  (s, e) => ChangeZoom(0.8f));
+            _btnFit        = CreateButton("⤢ Fit View",     (s, e) => ResetZoom());
+            _btnReset      = CreateButton("↺ Reset",        (s, e) => ResetFilters());
+            _btnExport     = CreateButton("📷 Export PNG",  (s, e) => ExportPNG());
+            _btnFullScreen = CreateButton("⛶ Full Screen", (s, e) => ToggleFullScreen());
 
-            actionFlow.Controls.AddRange(new Control[] { _btnZoomIn, _btnZoomOut, _btnFit, _btnExport, _btnFullScreen });
-            _toolbarPanel.Resize += (s, e) =>
-            {
-                actionFlow.Location = new Point(_toolbarPanel.Width - actionFlow.PreferredSize.Width - 20, 11);
-            };
-
-            // ── 2. LEGEND BAR ─────────────────────────────────────────────────
-            _legendPanel = new Panel
-            {
-                Dock      = DockStyle.Top,
-                Height    = 42,
-                BackColor = TrackBg
-            };
-            _legendPanel.Paint += (s, e) =>
-            {
+            // Search Customer Input
+            var pnlSearch = new Panel { Size = new Size(180, 34), Margin = new Padding(0, 0, 10, 0), BackColor = Color.FromArgb(248, 250, 252) };
+            pnlSearch.Paint += (s, e) => {
                 using var pen = new Pen(BorderColor, 1f);
-                e.Graphics.DrawLine(pen, 0, _legendPanel.Height - 1, _legendPanel.Width, _legendPanel.Height - 1);
+                e.Graphics.DrawRectangle(pen, 0, 0, pnlSearch.Width - 1, pnlSearch.Height - 1);
             };
-            Controls.Add(_legendPanel);
+            _txtSearch = new TextBox
+            {
+                Text          = "Search Customer...",
+                ForeColor     = TextMuted,
+                Font          = new Font("Segoe UI", 8.5f),
+                BorderStyle   = BorderStyle.None,
+                Location      = new Point(8, 8),
+                Width         = 164,
+                BackColor     = Color.FromArgb(248, 250, 252)
+            };
+            _txtSearch.GotFocus += (s, e) => { if (_txtSearch.Text == "Search Customer...") { _txtSearch.Text = ""; _txtSearch.ForeColor = TextDark; } };
+            _txtSearch.LostFocus += (s, e) => { if (string.IsNullOrWhiteSpace(_txtSearch.Text)) { _txtSearch.Text = "Search Customer..."; _txtSearch.ForeColor = TextMuted; } };
+            _txtSearch.TextChanged += (s, e) => {
+                _searchQuery = _txtSearch.Text == "Search Customer..." ? "" : _txtSearch.Text.Trim();
+                _ganttCanvas.Invalidate();
+            };
+            pnlSearch.Controls.Add(_txtSearch);
 
+            // Server Filter Dropdown
+            _cmbServerFilter = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font          = new Font("Segoe UI Semibold", 8.5f),
+                Size          = new Size(130, 34),
+                Margin        = new Padding(0, 0, 10, 0)
+            };
+            _cmbServerFilter.Items.Add("All Servers");
+            _cmbServerFilter.SelectedIndex = 0;
+            _cmbServerFilter.SelectedIndexChanged += (s, e) => {
+                _selectedServerFilter = _cmbServerFilter.SelectedIndex;
+                _ganttCanvas.Invalidate();
+            };
+
+            toolFlow.Controls.AddRange(new Control[]
+            {
+                _btnZoomIn, _btnZoomOut, _btnFit, _btnReset, _btnExport, _btnFullScreen, pnlSearch, _cmbServerFilter
+            });
+
+            _mainScrollContainer.Controls.Add(_toolbarCard);
+            y += 64 + 24;
+
+            // ── 3. LEGEND CARD ────────────────────────────────────────────────
+            _legendCard = CreateSectionCard(y, 52);
             var legendFlow = new FlowLayoutPanel
             {
-                Location      = new Point(20, 8),
+                Location      = new Point(16, 12),
                 Dock          = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
                 WrapContents  = true,
                 BackColor     = Color.Transparent,
                 Padding       = new Padding(12, 4, 12, 4)
             };
-            _legendPanel.Controls.Add(legendFlow);
+            _legendCard.Controls.Add(legendFlow);
 
             AddLegendBadge(legendFlow, "Busy Service", ColorBusy);
             AddLegendBadge(legendFlow, "Idle", ColorIdle);
             AddLegendBadge(legendFlow, "Waiting", ColorWaiting);
-            AddLegendBadge(legendFlow, "Completed", ColorCompleted);
+            AddLegendBadge(legendFlow, "Customer Completed", ColorCompleted);
             AddLegendBadge(legendFlow, "Setup / Active", ColorSetup);
             AddLegendBadge(legendFlow, "Break", ColorBreak);
-            AddLegendBadge(legendFlow, "Overload", ColorOverload);
+            AddLegendBadge(legendFlow, "Offline / Overload", ColorOverload);
 
-            // ── 3. BOTTOM SUMMARY CARDS ───────────────────────────────────────
-            _summaryCardsPanel = new FlowLayoutPanel
-            {
-                Dock         = DockStyle.Bottom,
-                Height       = 175,
-                BackColor    = PageBg,
-                Padding      = new Padding(20, 14, 20, 14),
-                WrapContents = true
-            };
-            Controls.Add(_summaryCardsPanel);
+            _mainScrollContainer.Controls.Add(_legendCard);
+            y += 52 + 24;
 
-            _cardSimTime  = CreateMetricCard("SIMULATION TIME", "--:--:--", "total duration", ColorBusy);
-            _cardServers  = CreateMetricCard("SERVERS",         "--",       "active cashiers", ColorSetup);
-            _cardAvgUtil  = CreateMetricCard("AVG UTILIZATION", "--",       "server utilization", ColorCompleted);
-            _cardServed   = CreateMetricCard("SERVED",          "0",        "customers completed", ColorCompleted);
-            _cardIdleTime = CreateMetricCard("TOTAL IDLE TIME", "--",       "idle capacity", ColorWaiting);
-            _cardAvgWait  = CreateMetricCard("AVG WAIT TIME",   "--",       "minutes wait", ColorWaiting);
-            _cardAvgSvc   = CreateMetricCard("AVG SERVICE TIME", "--",      "minutes service", ColorBusy);
-
-            _summaryCardsPanel.Controls.AddRange(new Control[]
-            {
-                _cardSimTime, _cardServers, _cardAvgUtil, _cardServed, _cardIdleTime, _cardAvgWait, _cardAvgSvc
-            });
-
-            // ── 4. MAIN GANTT CANVAS (DOCK FILL) ──────────────────────────────
+            // ── 4. TIMELINE CANVAS CARD ───────────────────────────────────────
+            _timelineCard = CreateSectionCard(y, 420);
             _ganttCanvas = new Panel
             {
                 Dock       = DockStyle.Fill,
@@ -222,35 +235,128 @@ namespace ImtiazQueueSimulator.Controls
             _ganttCanvas.Paint += PaintGanttCanvas;
             _ganttCanvas.MouseMove += GanttCanvas_MouseMove;
             _ganttCanvas.MouseClick += GanttCanvas_MouseClick;
-            Controls.Add(_ganttCanvas);
+            _timelineCard.Controls.Add(_ganttCanvas);
 
-            // Correct winforms dock ordering: Top & Bottom added first, Fill last!
-            _ganttCanvas.BringToFront();
-            _toolbarPanel.SendToBack();
+            _mainScrollContainer.Controls.Add(_timelineCard);
+            y += 420 + 24;
 
-            Resize += (s, e) => LayoutControls();
-            LayoutControls();
+            // ── 5. SUMMARY KPI CARDS ──────────────────────────────────────────
+            _summaryCardsPanel = new FlowLayoutPanel
+            {
+                Location     = new Point(0, y),
+                Width        = _mainScrollContainer.Width - 48,
+                Height       = 160,
+                Anchor       = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                BackColor    = Color.Transparent,
+                WrapContents = true
+            };
+
+            _cardSimTime   = CreateMetricCard("SIMULATION TIME", "--:--:--", "total duration", ColorBusy);
+            _cardServed    = CreateMetricCard("SERVED",          "0",        "customers completed", ColorCompleted);
+            _cardAvgWait   = CreateMetricCard("AVG WAIT (Wq)",   "--",       "minutes wait", ColorWaiting);
+            _cardAvgSvc    = CreateMetricCard("AVG SERVICE (W)", "--",       "minutes service", ColorBusy);
+            _cardIdleTime  = CreateMetricCard("TOTAL IDLE TIME", "--",       "idle capacity", ColorWaiting);
+            _cardPeakQueue = CreateMetricCard("PEAK QUEUE (Lq)", "0",        "max queue length", ColorOverload);
+            _cardAvgUtil   = CreateMetricCard("UTILIZATION",     "--",       "server workload", ColorSetup);
+            _cardThroughput= CreateMetricCard("THROUGHPUT (λ)",  "--",       "cust / hour", ColorCompleted);
+
+            _summaryCardsPanel.Controls.AddRange(new Control[]
+            {
+                _cardSimTime, _cardServed, _cardAvgWait, _cardAvgSvc, _cardIdleTime, _cardPeakQueue, _cardAvgUtil, _cardThroughput
+            });
+            _mainScrollContainer.Controls.Add(_summaryCardsPanel);
+            y += 160 + 24;
+
+            // ── 6. HELP SECTION CARD ──────────────────────────────────────────
+            _helpCard = CreateSectionCard(y, 100);
+            var lblHelpTitle = new Label
+            {
+                Text      = "💡 Interactive Timeline Guidance & Keyboard Shortcuts",
+                Font      = new Font("Segoe UI Semibold", 9.5f),
+                ForeColor = TextDark,
+                AutoSize  = true,
+                Location  = new Point(20, 14)
+            };
+            _helpCard.Controls.Add(lblHelpTitle);
+
+            var lblHelpBody = new Label
+            {
+                Text      = "• Hover over any customer activity block to inspect full journey metrics (Arrival, Queue Entry, Service Start, Departure).\n" +
+                            "• Click any block to launch the Customer Detail Dialog. Use Search Box to highlight specific customers.\n" +
+                            "• Server panel remains pinned on the left during horizontal scrolling. Use Zoom buttons to adjust time scale.",
+                Font      = new Font("Segoe UI", 8.5f),
+                ForeColor = TextMid,
+                AutoSize  = true,
+                Location  = new Point(20, 38)
+            };
+            _helpCard.Controls.Add(lblHelpBody);
+            _mainScrollContainer.Controls.Add(_helpCard);
+            y += 100 + 40;
+
+            _mainScrollContainer.Resize += (s, e) => LayoutCustomCards();
+            LayoutCustomCards();
         }
 
-        private void LayoutControls()
+        private Panel CreateSectionCard(int y, int height)
         {
-            if (_summaryCardsPanel == null) return;
-            int availW = Math.Max(400, ClientSize.Width - 40);
+            var p = new Panel
+            {
+                Location  = new Point(0, y),
+                Height    = height,
+                Width     = Math.Max(400, ClientSize.Width - 48),
+                Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                BackColor = CardBg
+            };
+
+            p.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                var r = new Rectangle(0, 0, p.Width - 1, p.Height - 1);
+
+                using (var bgBrush = new SolidBrush(CardBg))
+                {
+                    using var path = RoundPath(r, 16);
+                    g.FillPath(bgBrush, path);
+                }
+                using (var pen = new Pen(BorderColor, 1.2f))
+                {
+                    using var path = RoundPath(r, 16);
+                    g.DrawPath(pen, path);
+                }
+            };
+            return p;
+        }
+
+        private void LayoutCustomCards()
+        {
+            if (_mainScrollContainer == null) return;
+            int availW = Math.Max(400, _mainScrollContainer.ClientSize.Width - 48);
+
+            _headerCard.Width   = availW;
+            _toolbarCard.Width  = availW;
+            _legendCard.Width   = availW;
+            _timelineCard.Width  = availW;
+            _helpCard.Width      = availW;
             _summaryCardsPanel.Width = availW;
 
             int cardCount = _summaryCardsPanel.Controls.Count;
             if (cardCount > 0)
             {
-                int cardsPerRow = Math.Max(1, Math.Min(7, availW / 170));
-                int cardW = Math.Max(150, (availW - (cardsPerRow - 1) * 12) / cardsPerRow);
+                int cardsPerRow = Math.Max(1, Math.Min(8, availW / 160));
+                int cardW = Math.Max(140, (availW - (cardsPerRow - 1) * 12) / cardsPerRow);
                 foreach (Control c in _summaryCardsPanel.Controls)
                 {
                     if (c is MetricCard mc) mc.Width = cardW;
                 }
             }
+
+            int numServers = _result != null && _result.NumServers > 0 ? _result.NumServers : 1;
+            int timelineH  = Math.Max(320, 80 + numServers * 94);
+            _timelineCard.Height = timelineH;
         }
 
-        private Button CreateToolbarButton(string text, EventHandler onClick)
+        private Button CreateButton(string text, EventHandler onClick)
         {
             var btn = new Button
             {
@@ -259,7 +365,7 @@ namespace ImtiazQueueSimulator.Controls
                 ForeColor = TextDark,
                 BackColor = CardBg,
                 FlatStyle = FlatStyle.Flat,
-                Size      = new Size(110, 36),
+                Size      = new Size(105, 34),
                 Cursor    = Cursors.Hand,
                 Margin    = new Padding(0, 0, 8, 0)
             };
@@ -274,7 +380,7 @@ namespace ImtiazQueueSimulator.Controls
             var p = new Panel
             {
                 AutoSize  = true,
-                Margin    = new Padding(0, 0, 18, 0),
+                Margin    = new Padding(0, 0, 16, 0),
                 BackColor = Color.Transparent
             };
 
@@ -313,12 +419,12 @@ namespace ImtiazQueueSimulator.Controls
                 Value       = val,
                 Subtitle    = sub,
                 AccentColor = accent,
-                Size        = new Size(175, 145),
-                Margin      = new Padding(0, 0, 12, 0)
+                Size        = new Size(155, 145),
+                Margin      = new Padding(0, 0, 10, 0)
             };
         }
 
-        // ── Zoom & Actions ────────────────────────────────────────────────────
+        // ── Controls Actions ──────────────────────────────────────────────────
         private void ChangeZoom(float factor)
         {
             _zoomLevel = Math.Max(0.5f, Math.Min(4.0f, _zoomLevel * factor));
@@ -328,6 +434,17 @@ namespace ImtiazQueueSimulator.Controls
         private void ResetZoom()
         {
             _zoomLevel = 1.0f;
+            _ganttCanvas.Invalidate();
+        }
+
+        private void ResetFilters()
+        {
+            _zoomLevel = 1.0f;
+            _txtSearch.Text = "Search Customer...";
+            _txtSearch.ForeColor = TextMuted;
+            _searchQuery = "";
+            _cmbServerFilter.SelectedIndex = 0;
+            _selectedServerFilter = 0;
             _ganttCanvas.Invalidate();
         }
 
@@ -360,7 +477,7 @@ namespace ImtiazQueueSimulator.Controls
         {
             var form = new Form
             {
-                Text            = "Server Activity Timeline — Enterprise Full Screen View",
+                Text            = "Server Activity Timeline — Enterprise Monitoring View",
                 WindowState     = FormWindowState.Maximized,
                 StartPosition   = FormStartPosition.CenterScreen,
                 BackColor       = PageBg,
@@ -380,26 +497,37 @@ namespace ImtiazQueueSimulator.Controls
 
             if (result != null)
             {
-                _cardSimTime.Value  = Customer.FormatTime(result.SimulationTime);
-                _cardServers.Value  = $"{result.NumServers}";
-                _cardAvgUtil.Value  = double.IsNaN(result.SimRho) ? "--" : $"{result.SimRho * 100:F1}%";
-                _cardServed.Value   = $"{result.CustomersServed}";
-                _cardAvgWait.Value  = double.IsNaN(result.SimWq) ? "--" : $"{result.SimWq * 60:F1} m";
-                _cardAvgSvc.Value   = double.IsNaN(result.SimW) ? "--" : $"{result.SimW * 60:F1} m";
+                _cardSimTime.Value    = Customer.FormatTime(result.SimulationTime);
+                _cardServed.Value     = $"{result.CustomersServed}";
+                _cardAvgWait.Value    = double.IsNaN(result.SimWq) ? "--" : $"{result.SimWq * 60:F1} m";
+                _cardAvgSvc.Value     = double.IsNaN(result.SimW) ? "--" : $"{result.SimW * 60:F1} m";
+                _cardAvgUtil.Value    = double.IsNaN(result.SimRho) ? "--" : $"{result.SimRho * 100:F1}%";
+
+                int peakLq = result.QueueLengthOverTime != null && result.QueueLengthOverTime.Count > 0
+                           ? result.QueueLengthOverTime.Max(q => q.QueueLength) : 0;
+                _cardPeakQueue.Value  = $"{peakLq}";
+
+                double throughput = result.SimulationTime > 0 ? (result.CustomersServed / result.SimulationTime) : 0;
+                _cardThroughput.Value = $"{throughput:F1}/hr";
 
                 double totalIdle = 0;
-                if (result.ServerUtilizations != null && result.ServerUtilizations.Length > 0)
+                if (result.ServerUtilizations != null)
                 {
                     foreach (var util in result.ServerUtilizations)
-                    {
                         totalIdle += Math.Max(0, (1.0 - util) * result.SimulationTime);
-                    }
                 }
                 _cardIdleTime.Value = Customer.FormatDuration(totalIdle);
+
+                // Update Server Filter Dropdown Items
+                _cmbServerFilter.Items.Clear();
+                _cmbServerFilter.Items.Add("All Servers");
+                for (int s = 1; s <= result.NumServers; s++)
+                    _cmbServerFilter.Items.Add($"Cashier {s:D2}");
+                _cmbServerFilter.SelectedIndex = 0;
             }
 
+            LayoutCustomCards();
             _ganttCanvas.Invalidate();
-            LayoutControls();
         }
 
         // ── Main GDI+ Gantt Renderer ──────────────────────────────────────────
@@ -412,8 +540,8 @@ namespace ImtiazQueueSimulator.Controls
             int totalW = _ganttCanvas.Width;
             int totalH = _ganttCanvas.Height;
 
-            int leftColW  = 180; // Fixed Left Column for Server Names & Util Badges
-            int topAxisH  = 42;  // Sticky Top Time Axis
+            int leftColW  = 175; // Pinned Left Column width
+            int topAxisH  = 44;  // Sticky Top Time Axis height
             int rowH      = 70;  // Specification: Row height 70px
             int rowGap    = 24;  // Specification: Gap between rows 24px
             int blockH    = 34;  // Specification: Block height 34px
@@ -425,7 +553,7 @@ namespace ImtiazQueueSimulator.Controls
             if (_result == null || _result.AllCustomers.Count == 0)
             {
                 DrawEmptyState(g, new Rectangle(leftColW, topAxisH, totalW - leftColW, totalH - topAxisH),
-                    "No simulation results loaded. Run a simulation to populate the Gantt Chart.");
+                    "No simulation results loaded. Run a simulation to view the Gantt Chart.");
                 return;
             }
 
@@ -457,7 +585,7 @@ namespace ImtiazQueueSimulator.Controls
                     // Vertical grid line through rows
                     g.DrawLine(gridPen, tx, topAxisH, tx, gridBottomY);
 
-                    // Time tick label
+                    // Dynamic tick label (5 / 10 / 15 min intervals)
                     double t = (double)i / numTicks * maxTime;
                     string timeStr = Customer.FormatTime(t);
                     g.DrawString(timeStr, font, brush, new RectangleF(tx - 35, 12, 70, 20),
@@ -465,7 +593,7 @@ namespace ImtiazQueueSimulator.Controls
                 }
             }
 
-            // ── B. Server Rows & Customer Blocks ──────────────────────────────
+            // ── B. Server Rows & Activity Bars ────────────────────────────────
             Color[] barPalette = new Color[]
             {
                 ColorBusy, ColorCompleted, ColorSetup, ColorWaiting, ColorBreak, Color.FromArgb(14, 165, 233)
@@ -477,13 +605,16 @@ namespace ImtiazQueueSimulator.Controls
 
             for (int s = 1; s <= numServers; s++)
             {
+                // Server Filter check
+                if (_selectedServerFilter > 0 && _selectedServerFilter != s) continue;
+
                 int rowY  = topAxisH + (s - 1) * (rowH + rowGap) + 12;
                 int barY  = rowY + (rowH - blockH) / 2;
 
                 double serverUtil = (_result.ServerUtilizations != null && _result.ServerUtilizations.Length >= s)
                                   ? _result.ServerUtilizations[s - 1] * 100.0 : 0;
 
-                // 1. Pinned Left Server Card Panel
+                // 1. Pinned Left Server Header Card
                 var leftCardRect = new Rectangle(12, rowY, leftColW - 20, rowH);
                 using (var path = RoundPath(leftCardRect, 10))
                 {
@@ -520,7 +651,7 @@ namespace ImtiazQueueSimulator.Controls
                 using (var b = new SolidBrush(utilFg))
                     g.DrawString($"Utilization {serverUtil:F0}%", f, b, badgeRect, sfCenter);
 
-                // 2. Row Idle Background Track
+                // 2. Idle Background Track Strip
                 var trackRect = new Rectangle(timelineX, barY, timelineW, blockH);
                 using (var path = RoundPath(trackRect, 8))
                 {
@@ -530,7 +661,7 @@ namespace ImtiazQueueSimulator.Controls
                     g.DrawPath(borderPen, path);
                 }
 
-                // 3. Customer Service Blocks
+                // 3. Customer Activity Bars
                 int serverId = s;
                 var serverCustomers = _result.AllCustomers
                     .Where(c => c.AssignedServer == serverId && (c.Status == "Completed" || c.DepartureTime > 0 || c.ServiceStartTime > 0))
@@ -545,41 +676,33 @@ namespace ImtiazQueueSimulator.Controls
 
                     float bx1 = timelineX + (float)(startT / maxTime * timelineW);
                     float bx2 = timelineX + (float)(endT / maxTime * timelineW);
-                    float bw  = Math.Max(4f, bx2 - bx1);
+                    float bw  = Math.Max(12f, bx2 - bx1); // Specification: minimum visible width 12px
 
                     var blockRect = new RectangleF(bx1, barY, bw, blockH);
 
                     Color color = barPalette[(c.Id - 1) % barPalette.Length];
 
-                    // Draw rounded block
+                    // Check if matched by search filter
+                    bool isSearchMatch = !string.IsNullOrEmpty(_searchQuery) &&
+                        ($"C{c.Id:D3}".IndexOf(_searchQuery, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                         c.Id.ToString() == _searchQuery ||
+                         c.Name.IndexOf(_searchQuery, StringComparison.OrdinalIgnoreCase) >= 0);
+
+                    // Draw rounded bar (34px height, 8px radius)
                     using (var blockBrush = new SolidBrush(Color.FromArgb(225, color)))
                     {
-                        if (bw > 8)
-                        {
-                            using var path = RoundPath(Rectangle.Round(blockRect), 8);
-                            g.FillPath(blockBrush, path);
-                        }
-                        else
-                        {
-                            g.FillRectangle(blockBrush, blockRect);
-                        }
+                        using var path = RoundPath(Rectangle.Round(blockRect), 8);
+                        g.FillPath(blockBrush, path);
                     }
 
-                    using (var borderPen = new Pen(color, 1.2f))
+                    using (var borderPen = new Pen(isSearchMatch ? HighlightGold : color, isSearchMatch ? 2.5f : 1.2f))
                     {
-                        if (bw > 8)
-                        {
-                            using var path = RoundPath(Rectangle.Round(blockRect), 8);
-                            g.DrawPath(borderPen, path);
-                        }
-                        else
-                        {
-                            g.DrawRectangle(borderPen, blockRect.X, blockRect.Y, blockRect.Width, blockRect.Height);
-                        }
+                        using var path = RoundPath(Rectangle.Round(blockRect), 8);
+                        g.DrawPath(borderPen, path);
                     }
 
-                    // Render block labels: C001 and Time Range (00:03 → 00:08)
-                    if (bw >= 150)
+                    // Render Activity Content: Customer ID, Start Time, End Time
+                    if (bw >= 140)
                     {
                         using var fBold = new Font("Segoe UI Bold", 8.5f);
                         using var fSub  = new Font("Segoe UI Semibold", 7.5f);
@@ -591,17 +714,24 @@ namespace ImtiazQueueSimulator.Controls
                         g.DrawString(custTitle, fBold, bText, new RectangleF(bx1 + 8, barY + 2, bw - 16, 16), sfLeft);
                         g.DrawString(timeRange, fSub,  bText, new RectangleF(bx1 + 8, barY + 16, bw - 16, 15), sfLeft);
                     }
-                    else if (bw >= 65)
+                    else if (bw >= 50)
                     {
                         using var fBold = new Font("Segoe UI Bold", 8.5f);
                         using var bText = new SolidBrush(Color.White);
                         g.DrawString($"C{c.Id:D3}", fBold, bText, blockRect, sfCenter);
                     }
-                    else if (bw >= 30)
+                    else if (bw >= 20)
                     {
                         using var fBold = new Font("Segoe UI Bold", 7.5f);
                         using var bText = new SolidBrush(Color.White);
                         g.DrawString($"{c.Id}", fBold, bText, blockRect, sfCenter);
+                    }
+                    else
+                    {
+                        // Specification: If duration is too short (< 20px), show clean icon/dot
+                        using var fBold = new Font("Segoe UI", 7.5f);
+                        using var bText = new SolidBrush(Color.White);
+                        g.DrawString("👤", fBold, bText, blockRect, sfCenter);
                     }
                 }
             }
@@ -612,8 +742,8 @@ namespace ImtiazQueueSimulator.Controls
         {
             if (_result == null || _result.AllCustomers.Count == 0) return;
 
-            int leftColW = 180;
-            int topAxisH = 42;
+            int leftColW = 175;
+            int topAxisH = 44;
             int rowH     = 70;
             int rowGap   = 24;
             int blockH   = 34;
@@ -633,6 +763,8 @@ namespace ImtiazQueueSimulator.Controls
 
             for (int s = 1; s <= numServers; s++)
             {
+                if (_selectedServerFilter > 0 && _selectedServerFilter != s) continue;
+
                 int rowY = topAxisH + (s - 1) * (rowH + rowGap) + 12;
                 int barY = rowY + (rowH - blockH) / 2;
 
@@ -657,17 +789,18 @@ namespace ImtiazQueueSimulator.Controls
                 {
                     _ganttCanvas.Cursor = Cursors.Hand;
                     string tipText =
-                        $"👤 Customer: {hovered.Name} (C{hovered.Id:D3})\n" +
-                        $"🖥 Server: Cashier {hovered.AssignedServer:D2}\n" +
+                        $"👤 Customer:     {hovered.Name} (C{hovered.Id:D3})\n" +
+                        $"🖥 Server:       Cashier {hovered.AssignedServer:D2}\n" +
                         $"⏱ Store Arrival: {Customer.FormatTime(hovered.ArrivalTime)}\n" +
-                        $"⚡ Service Start: {Customer.FormatTime(hovered.ServiceStartTime)}\n" +
-                        $"🏁 End Service:   {Customer.FormatTime(hovered.DepartureTime)}\n" +
-                        $"⏳ Waiting Time:   {Customer.FormatDuration(hovered.WaitingTime)}\n" +
-                        $"💳 Service Time:   {Customer.FormatDuration(hovered.ServiceTime)}\n" +
-                        $"⏱ System Time:    {Customer.FormatDuration(hovered.TimeInSystem)}\n\n" +
-                        "👉 Click block to view complete customer profile dialog";
+                        $"📥 Queue Entry:  {Customer.FormatTime(hovered.QueueEntryTime)}\n" +
+                        $"⚡ Service Start:{Customer.FormatTime(hovered.ServiceStartTime)}\n" +
+                        $"🏁 Departure:    {Customer.FormatTime(hovered.DepartureTime)}\n" +
+                        $"⏳ Wait Time (Wq):{Customer.FormatDuration(hovered.WaitingTime)}\n" +
+                        $"💳 Service Time: {Customer.FormatDuration(hovered.ServiceTime)}\n" +
+                        $"⏱ System Time(W):{Customer.FormatDuration(hovered.TimeInSystem)}\n\n" +
+                        "👉 Click block to open complete customer details modal";
 
-                    _tooltip.Show(tipText, _ganttCanvas, e.X + 15, e.Y + 15, 4000);
+                    _tooltip.Show(tipText, _ganttCanvas, e.X + 15, e.Y + 15, 5000);
                 }
                 else
                 {
