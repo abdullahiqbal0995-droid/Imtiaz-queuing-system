@@ -174,55 +174,35 @@ namespace ImtiazQueueSimulator.Forms
             // Setup columns with matched Header and Cell Alignments
             _grid.Columns.AddRange(new DataGridViewColumn[]
             {
-                new DataGridViewTextBoxColumn
-                {
-                    Name = "Model", HeaderText = "Model", MinimumWidth = 150, Width = 150,
-                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleLeft } },
-                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleLeft }
-                },
-                new DataGridViewTextBoxColumn
-                {
-                    Name = "N", HeaderText = "N", MinimumWidth = 70, Width = 70,
-                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleCenter } },
-                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
-                },
-                new DataGridViewTextBoxColumn
-                {
-                    Name = "Type", HeaderText = "Evaluation Method", MinimumWidth = 200, Width = 200,
-                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleLeft } },
-                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleLeft }
-                },
-                new DataGridViewTextBoxColumn
-                {
-                    Name = "Rho", HeaderText = "ρ (Util)", MinimumWidth = 90, Width = 100,
-                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
-                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
-                },
-                new DataGridViewTextBoxColumn
-                {
-                    Name = "Lq", HeaderText = "Lq (Queue)", MinimumWidth = 100, Width = 120,
-                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
-                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
-                },
-                new DataGridViewTextBoxColumn
-                {
-                    Name = "L", HeaderText = "L (System)", MinimumWidth = 100, Width = 120,
-                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
-                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
-                },
-                new DataGridViewTextBoxColumn
-                {
-                    Name = "Wq", HeaderText = "Wq (min)", MinimumWidth = 100, Width = 125,
-                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
-                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
-                },
-                new DataGridViewTextBoxColumn
-                {
-                    Name = "W", HeaderText = "W (min)", MinimumWidth = 100, Width = 125,
-                    HeaderCell = { Style = { Alignment = DataGridViewContentAlignment.MiddleRight } },
-                    DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleRight }
-                }
+                new DataGridViewTextBoxColumn { Name = "Model", HeaderText = "Model", MinimumWidth = 150, Width = 150 },
+                new DataGridViewTextBoxColumn { Name = "N", HeaderText = "N", MinimumWidth = 70, Width = 70 },
+                new DataGridViewTextBoxColumn { Name = "Type", HeaderText = "Evaluation Method", MinimumWidth = 200, Width = 200 },
+                new DataGridViewTextBoxColumn { Name = "Rho", HeaderText = "ρ (Util)", MinimumWidth = 90, Width = 100 },
+                new DataGridViewTextBoxColumn { Name = "Lq", HeaderText = "Lq (Queue)", MinimumWidth = 100, Width = 120 },
+                new DataGridViewTextBoxColumn { Name = "L", HeaderText = "L (System)", MinimumWidth = 100, Width = 120 },
+                new DataGridViewTextBoxColumn { Name = "Wq", HeaderText = "Wq (min)", MinimumWidth = 100, Width = 125 },
+                new DataGridViewTextBoxColumn { Name = "W", HeaderText = "W (min)", MinimumWidth = 100, Width = 125 }
             });
+
+            // Force alignment configurations to match cell alignment and header cell alignment
+            foreach (DataGridViewColumn col in _grid.Columns)
+            {
+                if (col.Name == "Model" || col.Name == "Type")
+                {
+                    col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                    col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+                }
+                else if (col.Name == "N")
+                {
+                    col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
+                else
+                {
+                    col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                }
+            }
 
             _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             _grid.CellPainting += Grid_CellPainting;
