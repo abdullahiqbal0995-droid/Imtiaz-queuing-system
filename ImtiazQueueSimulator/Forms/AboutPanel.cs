@@ -222,7 +222,7 @@ namespace ImtiazQueueSimulator.Forms
             // ── 4. Model Comparison Table ──
             var tableCard = AddCard("▤", "MODEL COMPARISON TABLE");
             tableCard.AddText("Overview of arrival/service processes and analytical availability for the 6 models:");
-            tableCard.AddControl(CreateTableScrollContainer(CreateModelTable()));
+            tableCard.AddControl(CreateModelTable());
 
             // ── 5. Simulation Variables & Formulas ──
             var simFormulasCard = AddCard("📝", "SIMULATION VARIABLES & FORMULAS");
@@ -504,7 +504,11 @@ namespace ImtiazQueueSimulator.Forms
                     else if (child is Panel p)
                     {
                         p.Width = cardW - 40;
-                        p.PerformLayout(); // update formula box or scrolled container internally
+                        p.PerformLayout(); // update formula box or grid internally
+                    }
+                    else if (child is DataGridView dgv)
+                    {
+                        dgv.Width = cardW - 40;
                     }
                     else if (child is TableLayoutPanel tbl)
                     {
@@ -753,109 +757,85 @@ namespace ImtiazQueueSimulator.Forms
             return p;
         }
 
-        private Panel CreateTableScrollContainer(Control table)
+        private DataGridView CreateModelTable()
         {
-            var p = new Panel
+            var grid = new DataGridView
             {
-                AutoScroll = true,
-                Margin     = new Padding(0, 12, 0, 12),
-                BackColor  = Color.Transparent
-            };
-            p.Controls.Add(table);
-
-            p.Resize += (s, e) =>
-            {
-                table.Width = Math.Max(740, p.Width - 10);
-                p.Height    = table.Height + 24; // buffer for horizontal scrollbar
-            };
-
-            return p;
-        }
-
-        private TableLayoutPanel CreateModelTable()
-        {
-            var tbl = new TableLayoutPanel
-            {
-                ColumnCount     = 5,
-                RowCount        = 7,
-                AutoSize        = true,
-                Margin          = new Padding(0),
-                CellBorderStyle = TableLayoutPanelCellBorderStyle.Single,
-                BackColor       = Color.White
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
+                AllowUserToResizeColumns = false,
+                RowHeadersVisible = false,
+                BorderStyle = BorderStyle.None,
+                CellBorderStyle = DataGridViewCellBorderStyle.Single,
+                GridColor = Border,
+                BackgroundColor = Color.White,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                ScrollBars = ScrollBars.Horizontal, // only show horizontal scrollbar if needed
+                Height = 246,
+                Margin = new Padding(0, 12, 0, 12)
             };
 
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 15f));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16f));
-            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-
-            string[] headers = { "Model", "Arrival Process", "Service Process", "Servers", "Analytical / Simulation Method" };
-            for (int i = 0; i < headers.Length; i++)
+            // Custom modern visual style
+            grid.EnableHeadersVisualStyles = false;
+            grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            grid.ColumnHeadersHeight = 40;
+            grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
             {
-                var lbl = new Label
-                {
-                    Text      = headers[i],
-                    Font      = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold),
-                    ForeColor = Color.White,
-                    BackColor = Color.FromArgb(15, 23, 42), // Navy Dark Header
-                    Dock      = DockStyle.Fill,
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    Padding   = new Padding(12, 14, 12, 14),
-                    Margin    = new Padding(0)
-                };
-                tbl.Controls.Add(lbl, i, 0);
-            }
-
-            string[][] data = new string[][]
-            {
-                new string[] { "M/M/1", "Markovian (Poisson)", "Exponential", "1", "Exact formulas" },
-                new string[] { "M/M/N", "Markovian (Poisson)", "Exponential", "N", "Exact formulas" },
-                new string[] { "M/G/1", "Markovian (Poisson)", "General", "1", "P-K formula" },
-                new string[] { "M/G/N", "Markovian (Poisson)", "General", "N", "Simulation-based" },
-                new string[] { "G/G/1", "General", "General", "1", "Kingman approximation" },
-                new string[] { "G/G/N", "General", "General", "N", "Simulation-based" }
+                BackColor = Color.FromArgb(15, 23, 42),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold),
+                Alignment = DataGridViewContentAlignment.MiddleCenter,
+                Padding = new Padding(6)
             };
 
-            for (int r = 0; r < data.Length; r++)
+            grid.DefaultCellStyle = new DataGridViewCellStyle
             {
-                int rowIdx = r + 1;
-                Color originalBg = r % 2 == 0 ? Color.FromArgb(248, 250, 252) : Color.White;
-                Color hoverBg    = Color.FromArgb(239, 246, 255); // subtle blue row highlight
+                BackColor = Color.White,
+                ForeColor = TextMid,
+                Font = new Font("Segoe UI", 9f),
+                Alignment = DataGridViewContentAlignment.MiddleCenter,
+                Padding = new Padding(6),
+                SelectionBackColor = Color.FromArgb(239, 246, 255),
+                SelectionForeColor = TextDark
+            };
 
-                var rowCells = new List<Label>();
-                for (int c = 0; c < 5; c++)
-                {
-                    var lbl = new Label
-                    {
-                        Text      = data[r][c],
-                        Font      = new Font("Segoe UI", 9f),
-                        ForeColor = TextMid,
-                        Dock      = DockStyle.Fill,
-                        TextAlign = c == 0 ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter,
-                        Padding   = new Padding(12, 10, 12, 10),
-                        Margin    = new Padding(0),
-                        BackColor = originalBg
-                    };
-                    tbl.Controls.Add(lbl, c, rowIdx);
-                    rowCells.Add(lbl);
-                }
+            grid.AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle
+            {
+                BackColor = Color.FromArgb(248, 250, 252),
+                ForeColor = TextMid,
+                Font = new Font("Segoe UI", 9f),
+                SelectionBackColor = Color.FromArgb(239, 246, 255),
+                SelectionForeColor = TextDark
+            };
 
-                // Bind hover events to row cells
-                foreach (var cell in rowCells)
-                {
-                    cell.MouseEnter += (s, e) =>
-                    {
-                        foreach (var c in rowCells) c.BackColor = hoverBg;
-                    };
-                    cell.MouseLeave += (s, e) =>
-                    {
-                        foreach (var c in rowCells) c.BackColor = originalBg;
-                    };
-                }
-            }
+            // Columns definition
+            var cModel = new DataGridViewTextBoxColumn { Name = "Model", HeaderText = "Model", FillWeight = 15, MinimumWidth = 70 };
+            var cArrival = new DataGridViewTextBoxColumn { Name = "Arrival", HeaderText = "Arrival Process", FillWeight = 23, MinimumWidth = 140 };
+            var cService = new DataGridViewTextBoxColumn { Name = "Service", HeaderText = "Service Process", FillWeight = 23, MinimumWidth = 140 };
+            var cServers = new DataGridViewTextBoxColumn { Name = "Servers", HeaderText = "Servers", FillWeight = 14, MinimumWidth = 70 };
+            var cMethod = new DataGridViewTextBoxColumn { Name = "Method", HeaderText = "Analytical / Simulation Method", FillWeight = 25, MinimumWidth = 200 };
 
-            return tbl;
+            grid.Columns.AddRange(new DataGridViewColumn[] { cModel, cArrival, cService, cServers, cMethod });
+
+            // Alignment tweaks
+            grid.Columns[0].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
+
+            // Rows data
+            grid.Rows.Add("M/M/1", "Markovian (Poisson)", "Exponential", "1", "Exact formulas");
+            grid.Rows.Add("M/M/N", "Markovian (Poisson)", "Exponential", "N", "Exact formulas");
+            grid.Rows.Add("M/G/1", "Markovian (Poisson)", "General", "1", "P-K formula");
+            grid.Rows.Add("M/G/N", "Markovian (Poisson)", "General", "N", "Simulation-based");
+            grid.Rows.Add("G/G/1", "General", "General", "1", "Kingman approximation");
+            grid.Rows.Add("G/G/N", "General", "General", "N", "Simulation-based");
+
+            // Disable automatic visual selection selection on load
+            grid.DataBindingComplete += (s, e) => grid.ClearSelection();
+            
+            return grid;
         }
 
         private FlowLayoutPanel CreateVisualFlow()
