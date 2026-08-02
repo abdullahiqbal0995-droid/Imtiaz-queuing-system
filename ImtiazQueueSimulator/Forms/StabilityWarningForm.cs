@@ -7,7 +7,7 @@ namespace ImtiazQueueSimulator.Forms
 {
     /// <summary>
     /// Custom enterprise-grade warning modal displayed when simulating an unstable queueing system.
-    /// Redesigned with premium flat aesthetics, progress-bar utilization indicator, and precise alignments.
+    /// Engineered with 100% dynamic sizing and zero-clipping labels to handle High DPI scaling seamlessly.
     /// </summary>
     public class StabilityWarningForm : Form
     {
@@ -21,7 +21,6 @@ namespace ImtiazQueueSimulator.Forms
             ShowIcon = false;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(640, 560);
             BackColor = Color.White;
 
             // ── 1. Header (64px height) ──
@@ -80,76 +79,119 @@ namespace ImtiazQueueSimulator.Forms
             };
             Controls.Add(headerPanel);
 
-            // ── 2. Content Layout (Vertical stacking) ──
+            // ── 2. Content Layout (Vertical stacking FlowLayoutPanel) ──
             var mainFlow = new FlowLayoutPanel
             {
                 FlowDirection = FlowDirection.TopDown,
                 WrapContents = false,
-                Size = new Size(640, 416),
+                AutoSize = true,
+                Width = 640,
                 Location = new Point(0, 64),
                 BackColor = Color.Transparent,
                 Padding = new Padding(24, 16, 24, 0)
             };
             Controls.Add(mainFlow);
 
-            // Warning Banner
+            // Warning Banner (Dynamic auto-height)
             var banner = new RoundedPanel
             {
                 BackColor = Color.FromArgb(255, 244, 229), // #FFF4E5 light orange
                 BorderColor = Color.FromArgb(254, 202, 202), // light orange border
-                Size = new Size(592, 80),
+                Width = 592,
+                AutoSize = true,
+                Padding = new Padding(16, 12, 16, 12),
                 Margin = new Padding(0, 0, 0, 16)
             };
+
+            var bannerContent = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                AutoSize = true,
+                Width = 560,
+                Padding = new Padding(0),
+                Margin = new Padding(0),
+                BackColor = Color.Transparent
+            };
+            banner.Controls.Add(bannerContent);
 
             var bannerIcon = new Label
             {
                 Text = "⚠",
-                Font = new Font("Segoe UI", 16f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 20f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(249, 115, 22),
-                Location = new Point(16, 12),
-                Size = new Size(28, 28),
+                AutoSize = true,
+                Margin = new Padding(0, 0, 12, 0),
                 BackColor = Color.Transparent
             };
-            banner.Controls.Add(bannerIcon);
+            bannerContent.Controls.Add(bannerIcon);
+
+            var bannerTextFlow = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                AutoSize = true,
+                Width = 500,
+                Padding = new Padding(0),
+                Margin = new Padding(0),
+                BackColor = Color.Transparent
+            };
+            bannerContent.Controls.Add(bannerTextFlow);
 
             var bannerTitle = new Label
             {
                 Text = "System May Become Unstable",
-                Font = new Font("Segoe UI Semibold", 10.5f, FontStyle.Bold),
+                Font = new Font("Segoe UI Semibold", 11f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(194, 65, 12), // Dark orange
-                Location = new Point(48, 14),
-                Size = new Size(300, 20),
+                AutoSize = true,
+                Margin = new Padding(0, 0, 0, 4),
                 BackColor = Color.Transparent
             };
-            banner.Controls.Add(bannerTitle);
+            bannerTextFlow.Controls.Add(bannerTitle);
 
             var bannerDesc = new Label
             {
                 Text = "The configured parameters create an unstable queueing system because the offered load exceeds available service capacity.",
                 Font = new Font("Segoe UI", 9.5f),
                 ForeColor = Color.FromArgb(124, 45, 18),
-                Location = new Point(48, 36),
-                Size = new Size(528, 38),
+                AutoSize = true,
+                MaximumSize = new Size(490, 0), // Enable wrap
+                Margin = new Padding(0),
                 BackColor = Color.Transparent
             };
-            banner.Controls.Add(bannerDesc);
+            bannerTextFlow.Controls.Add(bannerDesc);
             mainFlow.Controls.Add(banner);
 
-            // Parameter Summary Card
+            // Parameter Summary Card (Dynamic auto-height)
             var paramCard = new RoundedPanel
             {
                 BackColor = Color.White,
                 BorderColor = Color.FromArgb(226, 232, 240), // slate-200
-                Size = new Size(592, 172),
+                Width = 592,
+                AutoSize = true,
+                Padding = new Padding(16, 12, 16, 16),
                 Margin = new Padding(0, 0, 0, 16)
             };
+
+            var cardFlow = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                AutoSize = true,
+                Width = 560,
+                Padding = new Padding(0),
+                Margin = new Padding(0),
+                BackColor = Color.Transparent
+            };
+            paramCard.Controls.Add(cardFlow);
 
             var tbl = new TableLayoutPanel
             {
                 ColumnCount = 2,
                 RowCount = 5,
-                Location = new Point(16, 12),
-                Size = new Size(560, 120),
+                AutoSize = true,
+                Width = 560,
+                Margin = new Padding(0, 0, 0, 12),
                 BackColor = Color.Transparent
             };
             tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
@@ -160,54 +202,67 @@ namespace ImtiazQueueSimulator.Forms
             AddParameterRow(tbl, "Servers", $"{n}", 2);
             AddParameterRow(tbl, "Capacity", $"{n * mu:F2} cust/hr", 3);
             AddParameterRow(tbl, "Utilization", $"{rho * 100:F2}%", 4, true);
-            paramCard.Controls.Add(tbl);
+            cardFlow.Controls.Add(tbl);
 
-            // Add progress bar underneath
             var progressBar = new CustomProgressBar(rho)
             {
-                Location = new Point(16, 144),
-                Size = new Size(560, 8)
+                Size = new Size(560, 8),
+                Margin = new Padding(0)
             };
-            paramCard.Controls.Add(progressBar);
+            cardFlow.Controls.Add(progressBar);
             mainFlow.Controls.Add(paramCard);
 
-            // Explanation Card
+            // Explanation Card (Dynamic auto-height)
             var infoCard = new RoundedPanel
             {
                 BackColor = Color.FromArgb(239, 246, 255), // light blue
                 BorderColor = Color.FromArgb(219, 234, 254),
-                Size = new Size(592, 92),
+                Width = 592,
+                AutoSize = true,
+                Padding = new Padding(16, 12, 16, 12),
                 Margin = new Padding(0, 0, 0, 16)
             };
+
+            var infoContent = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                AutoSize = true,
+                Width = 560,
+                Padding = new Padding(0),
+                Margin = new Padding(0),
+                BackColor = Color.Transparent
+            };
+            infoCard.Controls.Add(infoContent);
 
             var infoIcon = new Label
             {
                 Text = "ℹ",
-                Font = new Font("Segoe UI", 14f, FontStyle.Bold),
+                Font = new Font("Segoe UI", 16f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(29, 78, 216),
-                Location = new Point(16, 12),
-                Size = new Size(24, 24),
+                AutoSize = true,
+                Margin = new Padding(0, 0, 12, 0),
                 BackColor = Color.Transparent
             };
-            infoCard.Controls.Add(infoIcon);
+            infoContent.Controls.Add(infoIcon);
 
             var infoText = new Label
             {
                 Text = "• This system is theoretically unstable.\n• Customers may continue accumulating because demand exceeds service capacity.\n• The simulation can still be executed to observe transient queue growth.",
-                Font = new Font("Segoe UI", 9f),
+                Font = new Font("Segoe UI", 9.5f),
                 ForeColor = Color.FromArgb(30, 41, 59),
-                Location = new Point(48, 14),
-                Size = new Size(528, 68),
+                AutoSize = true,
+                MaximumSize = new Size(510, 0), // Enable wrap
+                Margin = new Padding(0),
                 BackColor = Color.Transparent
             };
-            infoCard.Controls.Add(infoText);
+            infoContent.Controls.Add(infoText);
             mainFlow.Controls.Add(infoCard);
 
             // ── 3. Bottom Button Panel (80px height) ──
             var buttonsPanel = new Panel
             {
                 Size = new Size(640, 80),
-                Location = new Point(0, 480),
                 BackColor = Color.Transparent
             };
             
@@ -239,7 +294,15 @@ namespace ImtiazQueueSimulator.Forms
             buttonsPanel.Controls.Add(btnRun);
             Controls.Add(buttonsPanel);
 
-            // Drag form support
+            // Perform manual height layout adjustment to support dynamic size
+            mainFlow.PerformLayout();
+            mainFlow.Height = mainFlow.PreferredSize.Height;
+            buttonsPanel.Location = new Point(0, headerPanel.Height + mainFlow.Height);
+
+            // Set Form size to perfectly fit standard panels
+            this.Size = new Size(640, headerPanel.Height + mainFlow.Height + buttonsPanel.Height + 8);
+
+            // Drag form support on header
             headerPanel.MouseDown += FormDrag_MouseDown;
         }
 
@@ -250,9 +313,10 @@ namespace ImtiazQueueSimulator.Forms
                 Text = label,
                 Font = new Font("Segoe UI", 9.5f, isUtil ? FontStyle.Bold : FontStyle.Regular),
                 ForeColor = isUtil ? Color.FromArgb(220, 38, 38) : Color.FromArgb(100, 116, 139), // slate-400 or warning red
-                Dock = DockStyle.Fill,
+                AutoSize = true,
                 TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                Margin = new Padding(0, 6, 0, 6)
             };
 
             var lblVal = new Label
@@ -260,9 +324,11 @@ namespace ImtiazQueueSimulator.Forms
                 Text = val,
                 Font = new Font("Segoe UI Semibold", 10f, FontStyle.Bold),
                 ForeColor = isUtil ? Color.FromArgb(220, 38, 38) : Color.FromArgb(15, 23, 42),
-                Dock = DockStyle.Fill,
+                AutoSize = true,
                 TextAlign = ContentAlignment.MiddleRight,
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                Margin = new Padding(0, 6, 0, 6),
+                Anchor = AnchorStyles.Right // align values right
             };
 
             tbl.Controls.Add(lblName, 0, row);
