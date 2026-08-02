@@ -13,9 +13,10 @@ namespace ImtiazQueueSimulator.Controls
     /// <summary>
     /// Senior Architect-grade Enterprise Gantt Timeline Control.
     /// Features:
+    ///   - Streamlined Legend: Busy Service & Idle
     ///   - Modular Card Sections (Header, Toolbar, Legend, Timeline Canvas, Summary Cards, Help Card)
     ///   - Pinned Server Column on Left (Scrolling timeline, sticky labels with Utilization %)
-    ///   - Dynamic Sticky Time Axis (5 / 10 / 15 min ticks)
+    ///   - Dynamic Sticky Time Axis (untruncated 90px time ticks)
     ///   - 70px Row Height, 34px Activity Bar Height, 8px Radius, Min 12px Visible Width
     ///   - Customer Search Filter & Server Filter
     ///   - Zoom (+, -, Fit, Reset), Export PNG, Fullscreen Mode
@@ -72,14 +73,13 @@ namespace ImtiazQueueSimulator.Controls
         private static readonly Color GridLinePen  = Color.FromArgb(241, 245, 249); // Slate 100
         private static readonly Color HighlightGold = Color.FromArgb(234, 179, 8);   // Amber 500
 
-        // Palette
-        private static readonly Color ColorBusy      = Color.FromArgb(37, 99, 235);   // Blue
-        private static readonly Color ColorIdle      = Color.FromArgb(226, 232, 240); // Gray
-        private static readonly Color ColorWaiting   = Color.FromArgb(217, 119, 6);   // Orange
-        private static readonly Color ColorCompleted = Color.FromArgb(16, 185, 129);  // Green
-        private static readonly Color ColorSetup     = Color.FromArgb(124, 58, 237);  // Purple
-        private static readonly Color ColorBreak     = Color.FromArgb(236, 72, 153);  // Pink
+        // Palette (Busy Service Blue & Idle Light Gray)
+        private static readonly Color ColorBusy      = Color.FromArgb(37, 99, 235);   // Primary Blue (#2563EB)
+        private static readonly Color ColorIdle      = Color.FromArgb(148, 163, 184); // Slate 400 Gray (#94A3B8)
+        private static readonly Color ColorCompleted = Color.FromArgb(16, 185, 129);  // Emerald Green
+        private static readonly Color ColorWaiting   = Color.FromArgb(217, 119, 6);   // Amber
         private static readonly Color ColorOverload  = Color.FromArgb(220, 38, 38);   // Red
+        private static readonly Color ColorSetup     = Color.FromArgb(124, 58, 237);  // Purple
 
         public event Action<Customer>? OnCustomerSelected;
 
@@ -200,7 +200,7 @@ namespace ImtiazQueueSimulator.Controls
             _mainScrollContainer.Controls.Add(_toolbarCard);
             y += 64 + 24;
 
-            // ── 3. LEGEND CARD ────────────────────────────────────────────────
+            // ── 3. LEGEND CARD (SIMPLIFIED TO 2 OPTIONS: BUSY SERVICE & IDLE) ─
             _legendCard = CreateSectionCard(y, 52);
             var legendFlow = new FlowLayoutPanel
             {
@@ -214,12 +214,7 @@ namespace ImtiazQueueSimulator.Controls
             _legendCard.Controls.Add(legendFlow);
 
             AddLegendBadge(legendFlow, "Busy Service", ColorBusy);
-            AddLegendBadge(legendFlow, "Idle", ColorIdle);
-            AddLegendBadge(legendFlow, "Waiting", ColorWaiting);
-            AddLegendBadge(legendFlow, "Customer Completed", ColorCompleted);
-            AddLegendBadge(legendFlow, "Setup / Active", ColorSetup);
-            AddLegendBadge(legendFlow, "Break", ColorBreak);
-            AddLegendBadge(legendFlow, "Offline / Overload", ColorOverload);
+            AddLegendBadge(legendFlow, "Idle Track", Color.FromArgb(203, 213, 225)); // Slate 300 Light Gray
 
             _mainScrollContainer.Controls.Add(_legendCard);
             y += 52 + 24;
@@ -380,7 +375,7 @@ namespace ImtiazQueueSimulator.Controls
             var p = new Panel
             {
                 AutoSize  = true,
-                Margin    = new Padding(0, 0, 16, 0),
+                Margin    = new Padding(0, 0, 24, 0),
                 BackColor = Color.Transparent
             };
 
@@ -402,10 +397,10 @@ namespace ImtiazQueueSimulator.Controls
             var lbl = new Label
             {
                 Text      = text,
-                Font      = new Font("Segoe UI Semibold", 8.5f),
-                ForeColor = TextMid,
+                Font      = new Font("Segoe UI Semibold", 9f),
+                ForeColor = TextDark,
                 AutoSize  = true,
-                Location  = new Point(16, 1)
+                Location  = new Point(18, 1)
             };
             p.Controls.Add(lbl);
             parent.Controls.Add(p);
@@ -540,7 +535,7 @@ namespace ImtiazQueueSimulator.Controls
             int totalW = _ganttCanvas.Width;
             int totalH = _ganttCanvas.Height;
 
-            int leftColW  = 175; // Pinned Left Column width
+            int leftColW  = 195; // Pinned Left Column width (widen to prevent Utilization truncation)
             int topAxisH  = 44;  // Sticky Top Time Axis height
             int rowH      = 70;  // Specification: Row height 70px
             int rowGap    = 24;  // Specification: Gap between rows 24px
@@ -585,23 +580,26 @@ namespace ImtiazQueueSimulator.Controls
                     // Vertical grid line through rows
                     g.DrawLine(gridPen, tx, topAxisH, tx, gridBottomY);
 
-                    // Dynamic tick label (5 / 10 / 15 min intervals)
+                    // Dynamic tick label (90px width prevents timestamp digit truncation!)
                     double t = (double)i / numTicks * maxTime;
                     string timeStr = Customer.FormatTime(t);
-                    g.DrawString(timeStr, font, brush, new RectangleF(tx - 35, 12, 70, 20),
+                    g.DrawString(timeStr, font, brush, new RectangleF(tx - 45, 12, 90, 20),
                         new StringFormat { Alignment = StringAlignment.Center });
                 }
             }
 
             // ── B. Server Rows & Activity Bars ────────────────────────────────
-            Color[] barPalette = new Color[]
+            // Subtle blue shades for busy customer service blocks
+            Color[] blueShades = new Color[]
             {
-                ColorBusy, ColorCompleted, ColorSetup, ColorWaiting, ColorBreak, Color.FromArgb(14, 165, 233)
+                Color.FromArgb(37, 99, 235),  // Primary Blue #2563EB
+                Color.FromArgb(29, 78, 216),  // Dark Blue #1D4ED8
+                Color.FromArgb(30, 64, 175),  // Deep Blue #1E40AF
+                Color.FromArgb(59, 130, 246)   // Sky Blue #3B82F6
             };
 
             var sfCenter = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
             var sfLeft   = new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center };
-            var sfRight  = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center };
 
             for (int s = 1; s <= numServers; s++)
             {
@@ -614,8 +612,8 @@ namespace ImtiazQueueSimulator.Controls
                 double serverUtil = (_result.ServerUtilizations != null && _result.ServerUtilizations.Length >= s)
                                   ? _result.ServerUtilizations[s - 1] * 100.0 : 0;
 
-                // 1. Pinned Left Server Header Card
-                var leftCardRect = new Rectangle(12, rowY, leftColW - 20, rowH);
+                // 1. Pinned Left Server Header Card (195px wide)
+                var leftCardRect = new Rectangle(12, rowY, leftColW - 18, rowH);
                 using (var path = RoundPath(leftCardRect, 10))
                 {
                     using var cardBgBrush = new SolidBrush(CardBg);
@@ -629,7 +627,7 @@ namespace ImtiazQueueSimulator.Controls
                 using (var b = new SolidBrush(TextDark))
                     g.DrawString($"Cashier {s:D2}", f, b, leftCardRect.X + 12, leftCardRect.Y + 12);
 
-                // Server Utilization Badge
+                // Server Utilization Badge (135px wide prevents Utilization 5... truncation!)
                 Color utilBg = serverUtil > 85 ? Color.FromArgb(254, 242, 242)
                              : serverUtil > 65 ? Color.FromArgb(254, 252, 232)
                              : Color.FromArgb(240, 253, 244);
@@ -638,7 +636,7 @@ namespace ImtiazQueueSimulator.Controls
                              : serverUtil > 65 ? ColorWaiting
                              : ColorCompleted;
 
-                var badgeRect = new Rectangle(leftCardRect.X + 12, leftCardRect.Y + 36, 115, 22);
+                var badgeRect = new Rectangle(leftCardRect.X + 10, leftCardRect.Y + 36, 135, 22);
                 using (var path = RoundPath(badgeRect, 6))
                 {
                     using var bgB = new SolidBrush(utilBg);
@@ -651,7 +649,7 @@ namespace ImtiazQueueSimulator.Controls
                 using (var b = new SolidBrush(utilFg))
                     g.DrawString($"Utilization {serverUtil:F0}%", f, b, badgeRect, sfCenter);
 
-                // 2. Idle Background Track Strip
+                // 2. Idle Background Track Strip (Light Gray Idle Track)
                 var trackRect = new Rectangle(timelineX, barY, timelineW, blockH);
                 using (var path = RoundPath(trackRect, 8))
                 {
@@ -661,7 +659,7 @@ namespace ImtiazQueueSimulator.Controls
                     g.DrawPath(borderPen, path);
                 }
 
-                // 3. Customer Activity Bars
+                // 3. Customer Activity Bars (Busy Service)
                 int serverId = s;
                 var serverCustomers = _result.AllCustomers
                     .Where(c => c.AssignedServer == serverId && (c.Status == "Completed" || c.DepartureTime > 0 || c.ServiceStartTime > 0))
@@ -680,7 +678,7 @@ namespace ImtiazQueueSimulator.Controls
 
                     var blockRect = new RectangleF(bx1, barY, bw, blockH);
 
-                    Color color = barPalette[(c.Id - 1) % barPalette.Length];
+                    Color color = blueShades[(c.Id - 1) % blueShades.Length];
 
                     // Check if matched by search filter
                     bool isSearchMatch = !string.IsNullOrEmpty(_searchQuery) &&
@@ -689,7 +687,7 @@ namespace ImtiazQueueSimulator.Controls
                          c.Name.IndexOf(_searchQuery, StringComparison.OrdinalIgnoreCase) >= 0);
 
                     // Draw rounded bar (34px height, 8px radius)
-                    using (var blockBrush = new SolidBrush(Color.FromArgb(225, color)))
+                    using (var blockBrush = new SolidBrush(Color.FromArgb(230, color)))
                     {
                         using var path = RoundPath(Rectangle.Round(blockRect), 8);
                         g.FillPath(blockBrush, path);
@@ -720,7 +718,7 @@ namespace ImtiazQueueSimulator.Controls
                         using var bText = new SolidBrush(Color.White);
                         g.DrawString($"C{c.Id:D3}", fBold, bText, blockRect, sfCenter);
                     }
-                    else if (bw >= 20)
+                    else if (bw >= 25)
                     {
                         using var fBold = new Font("Segoe UI Bold", 7.5f);
                         using var bText = new SolidBrush(Color.White);
@@ -728,10 +726,7 @@ namespace ImtiazQueueSimulator.Controls
                     }
                     else
                     {
-                        // Specification: If duration is too short (< 20px), show clean icon/dot
-                        using var fBold = new Font("Segoe UI", 7.5f);
-                        using var bText = new SolidBrush(Color.White);
-                        g.DrawString("👤", fBold, bText, blockRect, sfCenter);
+                        // Short block (< 25px): solid blue bar without text clipping
                     }
                 }
             }
@@ -742,7 +737,7 @@ namespace ImtiazQueueSimulator.Controls
         {
             if (_result == null || _result.AllCustomers.Count == 0) return;
 
-            int leftColW = 175;
+            int leftColW = 195;
             int topAxisH = 44;
             int rowH     = 70;
             int rowGap   = 24;
