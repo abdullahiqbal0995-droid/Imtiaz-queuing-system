@@ -436,7 +436,6 @@ namespace ImtiazQueueSimulator.Forms
                 warningText += $"⚠ M/M/N, M/G/N, G/G/N are unstable because λ ≥ Nμ (λ ≥ {n * mu}). ";
             }
             _lblWarning.Text = warningText;
-
             _grid.Rows.Clear();
             _lblStatus.Text = "Running comparisons across all 6 models...";
             Application.DoEvents();
@@ -454,6 +453,7 @@ namespace ImtiazQueueSimulator.Forms
                     "M/M/N" => AnalyticalSolver.SolveMMN(lambda, mu, servers),
                     "M/G/1" => AnalyticalSolver.SolveMG1(lambda, mu, "Exponential"),
                     "G/G/1" => AnalyticalSolver.SolveGG1(lambda, mu, "Exponential", "Exponential"),
+                    "G/G/N" => AnalyticalSolver.SolveGGN(lambda, mu, servers, "Exponential", "Exponential"),
                     _ => null
                 };
 
@@ -480,7 +480,7 @@ namespace ImtiazQueueSimulator.Forms
                         // Stable row
                         _grid.Rows.Add(
                             model, servers,
-                            model == "G/G/1" ? "ANALYTICAL (Approx)" : "ANALYTICAL",
+                            (model == "G/G/1" || model == "G/G/N") ? "ANALYTICAL (Approx)" : "ANALYTICAL",
                             "✓ Stable",
                             FmtPct(analytical.AnalyticalRho),
                             FmtVal(analytical.AnalyticalLq),

@@ -477,7 +477,11 @@ namespace ImtiazQueueSimulator.Simulation
                     analytical = AnalyticalSolver.SolveGG1(Lambda, Mu, ArrivalDistribution, ServiceDistribution,
                         ArrivalParam1, ArrivalParam2, ServiceParam1, ServiceParam2);
                     break;
-                // M/G/N and G/G/N: no closed-form; simulation-only
+                case "G/G/N":
+                    analytical = AnalyticalSolver.SolveGGN(Lambda, Mu, NumServers, ArrivalDistribution, ServiceDistribution,
+                        ArrivalParam1, ArrivalParam2, ServiceParam1, ServiceParam2);
+                    break;
+                // M/G/N: no closed-form; simulation-only
             }
 
             if (analytical != null)

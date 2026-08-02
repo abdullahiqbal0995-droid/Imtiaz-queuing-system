@@ -205,6 +205,79 @@ namespace ImtiazQueueSimulator.Simulation
         }
 
         /// <summary>
+        /// Solve G/G/N model using Allen-Cunneen Approximation.
+        /// </summary>
+        public static SimulationResult SolveGGN(double lambda, double mu, int n,
+            string arrivalDistribution, string serviceDistribution,
+            double arrParam1 = 0, double arrParam2 = 0,
+            double svcParam1 = 0, double svcParam2 = 0)
+        {
+            var result = new SimulationResult
+            {
+                ModelName = "G/G/N",
+                Lambda = lambda,
+                Mu = mu,
+                NumServers = n,
+                ArrivalDistribution = arrivalDistribution,
+                ServiceDistribution = serviceDistribution
+            };
+
+            double rho = lambda / (n * mu);
+            result.AnalyticalRho = rho;
+
+            if (rho >= 1)
+            {
+                result.AnalyticalLq = double.NaN;
+                result.AnalyticalL = double.NaN;
+                result.AnalyticalWq = double.NaN;
+                result.AnalyticalW = double.NaN;
+                result.AnalyticalP0 = double.NaN;
+                return result;
+            }
+
+            // Coefficients of variation
+            double ca = GetCV(arrivalDistribution, lambda, arrParam1, arrParam2);
+            double cs = GetCV(serviceDistribution, mu, svcParam1, svcParam2);
+
+            // Obtain standard M/M/N waiting time
+            var mmnResult = SolveMMN(lambda, mu, n);
+            double wq_MMN = mmnResult.AnalyticalWq;
+
+            if (double.IsNaN(wq_MMN) || double.IsInfinity(wq_MMN))
+            {
+                result.AnalyticalLq = double.NaN;
+                result.AnalyticalL = double.NaN;
+                result.AnalyticalWq = double.NaN;
+                result.AnalyticalW = double.NaN;
+                return result;
+            }
+
+            // Allen-Cunneen waiting time: Wq_GGN = ((Ca² + Cs²)/2) * Wq_MMN
+            double wq = ((ca * ca + cs * cs) / 2.0) * wq_MMN;
+
+            result.AnalyticalWq = wq;
+            result.AnalyticalLq = lambda * wq;
+            result.AnalyticalW = wq + (1.0 / mu);
+            result.AnalyticalL = lambda * result.AnalyticalW;
+            result.AnalyticalP0 = mmnResult.AnalyticalP0; // approx P0 same as M/M/N
+
+            return result;
+        }
+
+        private static double GetCV(string distribution, double rate, double param1 = 0, double param2 = 0)
+        {
+            if (distribution == "Exponential") return 1.0;
+            if (distribution == "Deterministic") return 0.0;
+            
+            double mean = 1.0 / rate;
+            if (mean <= 0) return 0.0;
+            
+            double variance = DistributionGenerator.GetVariance(distribution, rate, param1, param2);
+            double stdDev = Math.Sqrt(variance);
+            return stdDev / mean;
+        }
+
+        /// <summary>
         /// Calculate factorial (with overflow protection)
         /// </summary>
         private static double Factorial(int n)

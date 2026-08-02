@@ -761,17 +761,20 @@ namespace ImtiazQueueSimulator.Forms
                 "G/G/1" => AnalyticalSolver.SolveGG1(lambda, mu,
                     _cmbArrivalDist.SelectedItem?.ToString() ?? "Exponential",
                     _cmbServiceDist.SelectedItem?.ToString() ?? "Exponential"),
+                "G/G/N" => AnalyticalSolver.SolveGGN(lambda, mu, servers,
+                    _cmbArrivalDist.SelectedItem?.ToString() ?? "Exponential",
+                    _cmbServiceDist.SelectedItem?.ToString() ?? "Exponential"),
                 _ => null
             };
 
             if (res == null || double.IsNaN(res.AnalyticalLq))
             {
-                if (_selectedModel == "M/G/N" || _selectedModel == "G/G/N")
+                if (_selectedModel == "M/G/N")
                 {
                     _rtbResults.Text =
                         $"📐 THEORETICAL RESULTS ({_selectedModel})\n" +
                         "───────────────────────────────────────────────\n\n" +
-                        "No closed-form analytical formula exists for M/G/N and G/G/N.\n\n" +
+                        "No closed-form analytical formula exists for M/G/N.\n\n" +
                         "Results are obtained strictly via Discrete-Event Simulation.\n\n" +
                         "Click ▶ START SIMULATION to run the simulation.";
                 }
@@ -784,7 +787,7 @@ namespace ImtiazQueueSimulator.Forms
             }
             else
             {
-                string approxLabel = _selectedModel == "G/G/1" ? " (Kingman Approx.)" : "";
+                string approxLabel = _selectedModel == "G/G/1" ? " (Kingman Approx.)" : (_selectedModel == "G/G/N" ? " (Allen-Cunneen Approx.)" : "");
                 _rtbResults.Text =
                     $"📐 THEORETICAL RESULTS ({_selectedModel}){approxLabel}\n" +
                     "───────────────────────────────────────────────\n\n" +
